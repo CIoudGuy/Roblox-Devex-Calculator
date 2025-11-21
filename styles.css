@@ -3,7 +3,7 @@
 }
 
 :root {
-  --bg: rgba(5, 6, 11, 0.72);
+  --bg: #05060b;
   --card: rgba(14, 16, 24, 0.9);
   --card-border: rgba(255, 255, 255, 0.1);
   --text: #f1f4ff;
@@ -18,8 +18,8 @@
 body {
   margin: 0;
   font-family: "Manrope", "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: radial-gradient(circle at 20% 20%, rgba(120, 130, 255, 0.05), transparent 26%),
-    radial-gradient(circle at 80% 10%, rgba(255, 180, 160, 0.04), transparent 38%),
+  background: radial-gradient(circle at 20% 20%, rgba(120, 130, 255, 0.08), transparent 25%),
+    radial-gradient(circle at 80% 10%, rgba(255, 180, 160, 0.06), transparent 36%),
     var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -49,11 +49,22 @@ body {
 }
 
 .grid {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
   grid-template-rows: auto auto;
   gap: 16px;
   align-items: start;
+}
+.grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 35% 30%, rgba(118, 198, 255, 0.08), transparent 45%);
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .card {
