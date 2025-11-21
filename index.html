@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DevEx Flow Calculator</title>
+  <title>Roblox DevEx Calculator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- pin to r149 to avoid deprecated build warning (r150+ removes build/three.min.js) -->
+  <script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -67,8 +68,8 @@
           <div class="head-actions">
             <div class="currency-wrap">
               <select id="fxSelect" aria-label="Currency selector"></select>
-              <div class="fx-note-inline">Rates via ECB (~12h) <span class="hint-icon" id="fxUpdated" data-tooltip="Rates updating...">?</span></div>
             </div>
+            <div class="fx-note-inline">Rates via ECB (~12h) <span class="hint-icon" id="fxUpdated" data-tooltip="Rates updating...">?</span></div>
             <button id="exportPng" class="icon-btn slim" type="button" aria-label="Export results as PNG" title="Export PNG">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 4h16v14H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>

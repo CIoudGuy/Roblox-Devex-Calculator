@@ -66,10 +66,15 @@ function initCalculator() {
   const lastUpdatedEl = document.getElementById("lastUpdated");
   const fxUpdated = document.getElementById("fxUpdated");
   const resultsGrid = document.querySelector(".results-grid");
-  const formatLocalTimestamp = () =>
-    new Date().toLocaleString([], { hour12: false, timeZoneName: "short" });
-  const touchUpdated = () => {
-    if (lastUpdatedEl) lastUpdatedEl.textContent = formatLocalTimestamp();
+  const formatDisplayTimestamp = (value) => {
+    const dateObj = value instanceof Date ? value : value ? new Date(value) : null;
+    if (!dateObj || Number.isNaN(dateObj.getTime())) return "";
+    return dateObj.toLocaleString([], { hour12: false, timeZoneName: "short" });
+  };
+  const initialLastUpdated = formatDisplayTimestamp(document.lastModified);
+  let lastUpdatedText = initialLastUpdated;
+  const renderLastUpdated = () => {
+    if (lastUpdatedEl) lastUpdatedEl.textContent = lastUpdatedText || initialLastUpdated || "—";
   };
 
   parseQueryParams();
@@ -88,16 +93,18 @@ function initCalculator() {
 
   const readCollaborators = () => {
     if (!splitList) return [];
-    return Array.from(splitList.querySelectorAll(".split-row")).map((row, idx) => {
-      const nameInput = row.querySelector(".split-name");
-      const pctInput = row.querySelector(".split-percent");
-      const pct = clamp(0, parseNumber(pctInput?.value), 100);
-      return {
-        id: row.dataset.id || `${idx}`,
-        name: (nameInput?.value || "").trim() || "Collaborator",
-        pct,
-      };
-    });
+    return Array.from(splitList.querySelectorAll(".split-row"))
+      .filter((row) => !row.dataset.removing)
+      .map((row, idx) => {
+        const nameInput = row.querySelector(".split-name");
+        const pctInput = row.querySelector(".split-percent");
+        const pct = clamp(0, parseNumber(pctInput?.value), 100);
+        return {
+          id: row.dataset.id || `${idx}`,
+          name: (nameInput?.value || "").trim() || "Collaborator",
+          pct,
+        };
+      });
   };
 
   const getInputs = () => {
@@ -176,6 +183,18 @@ function initCalculator() {
   };
   populateCurrencies();
 
+  let lastRemoveClick = 0;
+  let fastRemoveTimer = null;
+  const FAST_REMOVE_WINDOW = 450;
+  const FAST_REMOVE_COOLDOWN = 900;
+  const setFastRemove = (active) => {
+    if (!splitList) return;
+    splitList.classList.toggle("no-anim", active);
+    if (!active) return;
+    clearTimeout(fastRemoveTimer);
+    fastRemoveTimer = setTimeout(() => splitList.classList.remove("no-anim"), FAST_REMOVE_COOLDOWN);
+  };
+
   const createSplitRow = (data = {}) => {
     const row = document.createElement("div");
     row.className = "split-row";
@@ -210,12 +229,27 @@ function initCalculator() {
     pctInput.addEventListener("input", onChange);
     pctInput.addEventListener("blur", onChange);
     removeBtn.addEventListener("click", () => {
-      row.classList.add("fade-out");
-      setTimeout(() => {
+      const now = performance.now();
+      const rapid = now - lastRemoveClick < FAST_REMOVE_WINDOW;
+      lastRemoveClick = now;
+      if (rapid) setFastRemove(true);
+      if (row.dataset.removing) return;
+      row.dataset.removing = "1";
+      if (splitList?.classList.contains("no-anim")) {
         row.remove();
         updateAll();
         convertUsdToRobux();
-      }, 180);
+        return;
+      }
+      row.classList.add("fade-out");
+      const finishRemoval = () => {
+        row.removeEventListener("transitionend", finishRemoval);
+        if (row.isConnected) row.remove();
+      };
+      row.addEventListener("transitionend", finishRemoval);
+      setTimeout(finishRemoval, 140); // fallback in case transitionend doesn't fire
+      updateAll();
+      convertUsdToRobux();
     });
 
     row.append(nameInput, pctInput, removeBtn);
@@ -377,7 +411,7 @@ function initCalculator() {
     const inputs = getInputs();
     const outputs = computeOutputs(inputs);
     renderOutputs(outputs);
-    touchUpdated();
+    renderLastUpdated();
     return outputs;
   };
 
@@ -446,9 +480,15 @@ function initCalculator() {
     const buildExportNode = () => {
       const wrapper = document.createElement("div");
       wrapper.className = "export-wrapper";
-      const clone = resultsCard
-        ? resultsCard.cloneNode(true)
-        : document.querySelector(".page").cloneNode(true);
+      const source = resultsCard || document.querySelector(".page");
+      const clone = source.cloneNode(true);
+      clone.classList.add("export-glow");
+      clone.classList.remove("collapsed");
+      clone.style.width = `${(source?.offsetWidth || 1100)}px`;
+      clone.style.maxWidth = "100%";
+      clone.style.position = "relative";
+      clone.style.padding = "16px";
+      clone.querySelectorAll(".collapse-toggle").forEach((btn) => btn.remove());
       clone.classList.add("export-glow");
       // Remove buttons that aren't needed
       clone.querySelectorAll("button").forEach((btn) => {
@@ -527,7 +567,7 @@ function initCalculator() {
       if (activeMetric === "convert") {
         renderBreakdown(latestOutputs || computeOutputs(getInputs()));
       }
-      touchUpdated();
+      renderLastUpdated();
       return;
     }
     const inputs = getInputs();
@@ -544,7 +584,7 @@ function initCalculator() {
     const robuxNeeded = Math.ceil(totalUsd / inputs.rate);
     lastConvertRobux = robuxNeeded;
     if (activeMetric === "convert") renderBreakdown(latestOutputs || computeOutputs(getInputs()));
-    touchUpdated();
+    renderLastUpdated();
   };
 
   breakdownButtons.forEach((btn) =>
@@ -561,7 +601,7 @@ function initCalculator() {
       const card = btn.closest(".card");
       if (!card) return;
       card.classList.toggle("collapsed");
-      touchUpdated();
+      renderLastUpdated();
     });
   });
 
@@ -585,7 +625,7 @@ function initCalculator() {
       el.addEventListener(evt, () => {
         if (el === usdInput && evt === "input") return; // handled in conversion
         setActiveMetric(metric);
-        touchUpdated();
+        renderLastUpdated();
       })
     );
   });
@@ -607,53 +647,92 @@ function initCalculator() {
     usdInput.placeholder = `Enter ${nextCurrency}`;
     updateAll();
     convertUsdToRobux();
-    touchUpdated();
+    renderLastUpdated();
   };
 
   fxSelect.addEventListener("change", updateCurrencyDisplay);
   const fetchEcbRates = async () => {
+    const sources = [
+      "https://raw.githubusercontent.com/European-Central-Bank/Euroforeign-exchange-reference-rates/master/eurofxref-daily.xml",
+      "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml",
+    ];
     if (fxUpdated) {
-      fxUpdated.textContent = "?";
+      fxUpdated.textContent = "✓";
       fxUpdated.dataset.tooltip = "Updating from ECB...";
     }
+    const tryFetchXml = async (url) => {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const xmlText = await res.text();
+      const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+      if (doc.querySelector("parsererror")) throw new Error("Parse error");
+      return doc;
+    };
+
+    const parseDoc = (doc) => {
+      const dayNode = doc.querySelector("Cube[time]");
+      const dateStr = dayNode?.getAttribute("time") || "";
+      const rateNodes = Array.from(doc.querySelectorAll("Cube[currency][rate]"));
+      const eurToCurrency = {};
+      rateNodes.forEach((node) => {
+        const code = node.getAttribute("currency");
+        const rate = Number(node.getAttribute("rate"));
+        if (!code || !rate || Number.isNaN(rate) || rate <= 0) return;
+        eurToCurrency[code] = rate;
+      });
+      const usdPerEur = eurToCurrency.USD;
+      if (!usdPerEur) throw new Error("ECB feed missing USD");
+      const fxMap = { USD: 1, EUR: usdPerEur };
+      Object.entries(eurToCurrency).forEach(([code, eurRate]) => {
+        if (code === "USD") return;
+        fxMap[code] = usdPerEur / eurRate;
+      });
+      return { fxMap, dateStr };
+    };
+
     try {
-      const res = await fetch("https://api.exchangerate.host/latest?base=USD&source=ecb");
-      const data = await res.json();
-      if (data && data.rates) {
-        const rates = { USD: 1 };
-        Object.entries(data.rates).forEach(([code, val]) => {
-          const num = Number(val);
-          if (num > 0) rates[code] = 1 / num;
-        });
-        state.fxToUsd = rates;
-        window.fxToUsd = rates;
-        const dynamicList = Object.keys(rates)
-          .sort()
-          .map((code) => ({ code, name: currencyNameMap[code] || code }));
-        window.currencyList = dynamicList;
-        populateCurrencies();
-        if (fxSelect && !state.fxToUsd[state.displayCurrency]) {
-          state.displayCurrency = "USD";
-          fxSelect.value = "USD";
+      let doc = null;
+      for (const url of sources) {
+        try {
+          doc = await tryFetchXml(url);
+          break;
+        } catch (err) {
+          continue;
         }
-        if (fxUpdated) {
-          const tsRaw = data.timestamp
-            ? new Date(data.timestamp * 1000)
-            : new Date(data.date || Date.now());
-          const tsText = tsRaw.toLocaleString();
-          fxUpdated.dataset.tooltip = `ECB updated ${tsText}`;
-          fxUpdated.textContent = "?";
-        }
-        updateCurrencyDisplay();
-        touchUpdated();
-        return;
       }
+      if (!doc) throw new Error("All ECB sources failed");
+      const { fxMap, dateStr } = parseDoc(doc);
+      state.fxToUsd = fxMap;
+      window.fxToUsd = fxMap;
+      const nameLookup = (window.currencyList || []).reduce((acc, c) => {
+        acc[c.code] = c.name || c.code;
+        return acc;
+      }, {});
+      const codes = Object.keys(fxMap).sort();
+      window.currencyList = codes.map((code) => ({
+        code,
+        name: nameLookup[code] || code,
+      }));
+      populateCurrencies();
+      if (fxSelect && !state.fxToUsd[state.displayCurrency]) {
+        state.displayCurrency = "USD";
+        fxSelect.value = "USD";
+      }
+      if (fxUpdated) {
+        fxUpdated.dataset.tooltip = dateStr
+          ? `ECB reference rates (${dateStr})`
+          : "ECB reference rates";
+        fxUpdated.textContent = "✓";
+      }
+      updateCurrencyDisplay();
+      renderLastUpdated();
+      return;
     } catch (e) {
       console.warn("ECB rates fetch failed", e);
     }
     if (fxUpdated) {
-      fxUpdated.dataset.tooltip = "Using static FX fallback";
-      fxUpdated.textContent = "?";
+      fxUpdated.dataset.tooltip = "Using fallback rates";
+      fxUpdated.textContent = "!";
     }
     if (!window.currencyList || !window.currencyList.length) {
       window.currencyList = Object.keys(state.fxToUsd).map((code) => ({
@@ -663,14 +742,12 @@ function initCalculator() {
     }
     populateCurrencies();
     updateCurrencyDisplay();
-    touchUpdated();
+    renderLastUpdated();
   };
 
   fetchEcbRates();
 
-  if (lastUpdatedEl) {
-    lastUpdatedEl.textContent = formatLocalTimestamp();
-  }
+  renderLastUpdated();
 }
 
 document.addEventListener("DOMContentLoaded", initCalculator);
