@@ -4,7 +4,7 @@ A Roblox Devex Calculator with a few more features
 The goal of this is to keep it nice, simple and beautiful! Join my [Discord](https://discord.gg/BE7k9Xxm5z) if you have questions or suggestions
 
 ## Usage
-- Visit this Website and use it! 
+- Visit [this](https://cioudguy.github.io/Roblox-Devex-Calculator/) Website and use it! 
 
   or
 - Download the Code to self-host
