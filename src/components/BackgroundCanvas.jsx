@@ -9,11 +9,11 @@ export default function BackgroundCanvas() {
     if (!canvas) return;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.4));
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x05060b, 0.06);
+    scene.fog = new THREE.FogExp2(0x05060b, 0.04);
 
     const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 80);
     camera.position.set(0, 0, 10);
@@ -36,7 +36,7 @@ export default function BackgroundCanvas() {
         positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
         positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
         positions[i * 3 + 2] = r * Math.cos(phi);
-        color.setHSL(tint + Math.random() * 0.05, 0.45, 0.65);
+        color.setHSL(tint + Math.random() * 0.05, 0.35, 0.62);
         colors[i * 3] = color.r;
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
@@ -49,15 +49,15 @@ export default function BackgroundCanvas() {
           size,
           vertexColors: true,
           transparent: true,
-          opacity: 0.6,
+          opacity: 0.55,
           depthWrite: false,
         })
       );
     };
 
-    const layerNear = makeStars(320, 0.034, 5.8, 0.58);
-    const layerMid = makeStars(260, 0.05, 4.5, 0.6);
-    const layerFar = makeStars(480, 0.02, 9.5, 0.55);
+    const layerNear = makeStars(260, 0.04, 6.5, 0.58);
+    const layerMid = makeStars(340, 0.032, 9.5, 0.56);
+    const layerFar = makeStars(520, 0.022, 14, 0.54);
     starGroup.add(layerFar, layerMid, layerNear);
 
     const clock = new THREE.Clock();
@@ -89,17 +89,17 @@ export default function BackgroundCanvas() {
     const animate = () => {
       if (!mounted) return;
       const t = clock.getElapsedTime();
-      smoothX = lerp(smoothX, pointer.x, 0.04);
-      smoothY = lerp(smoothY, pointer.y, 0.04);
-      const tiltX = (smoothY - 0.5) * 0.06;
-      const tiltY = (smoothX - 0.5) * 0.1;
+      smoothX = lerp(smoothX, pointer.x, 0.018);
+      smoothY = lerp(smoothY, pointer.y, 0.018);
+      const tiltX = (smoothY - 0.5) * 0.02;
+      const tiltY = (smoothX - 0.5) * 0.038;
       starGroup.rotation.x = tiltX;
       starGroup.rotation.y = tiltY;
 
-      layerFar.rotation.y = t * -0.01;
-      layerMid.rotation.y = t * 0.008;
-      layerNear.rotation.y = t * 0.012;
-      layerNear.rotation.x = t * 0.004;
+      layerFar.rotation.y = t * -0.004;
+      layerMid.rotation.y = t * 0.0035;
+      layerNear.rotation.y = t * 0.0048;
+      layerNear.rotation.x = t * 0.0018;
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);

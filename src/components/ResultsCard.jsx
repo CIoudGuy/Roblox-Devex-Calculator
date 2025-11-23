@@ -1,13 +1,30 @@
 import { AnimatePresence, motion } from "framer-motion";
 import CurrencySelect from "./CurrencySelect.jsx";
+import CountUp from "./CountUp.jsx";
+
+const comfySpring = { type: "spring", stiffness: 450, damping: 27 };
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.03,
+      delayChildren: 0.03,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: comfySpring },
+};
 
 export default function ResultsCard({
   currency,
   onCurrencyChange,
   onExport,
   formatCurrency,
-  fxNote = "Rates via ECB (~12h)",
-  fxStatus = "OK",
   hasCollabs,
   withholdOpen,
   activeMetric,
@@ -18,11 +35,11 @@ export default function ResultsCard({
   splits,
 }) {
   return (
-    <section className="card wide" id="resultsCard">
+    <motion.section className="card wide" id="resultsCard" layout transition={comfySpring}>
       <div>
         <div className="card-head">
           <h2>
-            Results <span className="hint-icon" data-tooltip="Shows payouts and conversions at the current splits, withholding, and fee.">?</span>
+            Results <span className="hint-icon" data-tooltip="Payouts with your current settings.">?</span>
           </h2>
           <div className="head-actions">
             <div className="currency-wrap">
@@ -37,95 +54,140 @@ export default function ResultsCard({
           </div>
         </div>
         <div id="resultsBody">
-          <div className="fx-banner">
-            <div className="fx-note-inline">
-              {fxNote} <span className="hint-icon" id="fxUpdated" data-tooltip="Rates updating...">{fxStatus}</span>
-            </div>
-          </div>
-          <div className={`results-grid${hasCollabs ? " has-splits" : ""}`}>
-            <div className="conversion-box breakdown-box">
+          <motion.div
+            className={`results-grid${hasCollabs ? " has-splits" : ""}`}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div className="conversion-box breakdown-box" variants={itemVariants}>
               <div className="breakdown-header">
-                <div className="pill-group" role="group" aria-label="Payout breakdown toggle">
+                <motion.div className="pill-group" role="group" aria-label="Payout breakdown toggle" layout>
                   <motion.button
                     className={`pill-btn ${activeMetric === "gross" ? "active" : ""}`}
                     onClick={() => setActiveMetric("gross")}
-                    whileTap={{ scale: 0.97 }}
+                    layout
+                    transition={comfySpring}
                   >
                     Gross
                   </motion.button>
-                  <motion.button
-                    className={`pill-btn ${activeMetric === "split" ? "active" : ""} ${!hasCollabs ? "is-hidden" : ""}`}
-                    onClick={() => setActiveMetric("split")}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    After splits
-                  </motion.button>
-                  <motion.button
-                    className={`pill-btn ${activeMetric === "withholding" ? "active" : ""} ${!withholdOpen ? "is-hidden" : ""}`}
-                    onClick={() => setActiveMetric("withholding")}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    After withholding
-                  </motion.button>
+                  <AnimatePresence>
+                    {hasCollabs && (
+                      <motion.button
+                        key="split"
+                        className={`pill-btn ${activeMetric === "split" ? "active" : ""}`}
+                        onClick={() => setActiveMetric("split")}
+                        layout
+                        initial={{ width: 0, opacity: 0, scale: 0.8, paddingLeft: 0, paddingRight: 0, marginLeft: -4 }}
+                        animate={{ width: "auto", opacity: 1, scale: 1, paddingLeft: 12, paddingRight: 12, marginLeft: 0 }}
+                        exit={{ width: 0, opacity: 0, scale: 0.8, paddingLeft: 0, paddingRight: 0, marginLeft: -4 }}
+                        transition={comfySpring}
+                        style={{ overflow: "hidden", whiteSpace: "nowrap" }}
+                      >
+                        After splits
+                      </motion.button>
+                    )}
+                    {withholdOpen && (
+                      <motion.button
+                        key="withholding"
+                        className={`pill-btn ${activeMetric === "withholding" ? "active" : ""}`}
+                        onClick={() => setActiveMetric("withholding")}
+                        layout
+                        initial={{ width: 0, opacity: 0, scale: 0.8, paddingLeft: 0, paddingRight: 0, marginLeft: -4 }}
+                        animate={{ width: "auto", opacity: 1, scale: 1, paddingLeft: 12, paddingRight: 12, marginLeft: 0 }}
+                        exit={{ width: 0, opacity: 0, scale: 0.8, paddingLeft: 0, paddingRight: 0, marginLeft: -4 }}
+                        transition={comfySpring}
+                        style={{ overflow: "hidden", whiteSpace: "nowrap" }}
+                      >
+                        After withholding
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
                   <motion.button
                     className={`pill-btn ${activeMetric === "convert" ? "active" : ""}`}
                     onClick={() => setActiveMetric("convert")}
-                    whileTap={{ scale: 0.97 }}
+                    layout
+                    transition={comfySpring}
                   >
                     {currency} to Robux
                   </motion.button>
-                </div>
+                </motion.div>
               </div>
               <div className="breakdown-main">
-                <h3 className="breakdown-title">
-                  Payout breakdown{" "}
-                  <span className="hint-icon" data-tooltip="Toggle to view payout at each step with splits, withholding, and fee applied.">?</span>
-                </h3>
-                <p className="muted" id="breakdownLabel">
-                  {breakdown.label}
-                </p>
-                <div className="conversion-output" id="breakdownValue">
-                  {resultValue}
-                </div>
-                <p className="muted tiny" id="breakdownNote">
-                  {typeof breakdown.note === "function" ? breakdown.note(totals) : breakdown.note}
-                </p>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeMetric}
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+                  >
+                    <h3 className="breakdown-title">
+                      Payout breakdown{" "}
+                      <span className="hint-icon" data-tooltip="Pick gross, splits/withholding, or reverse to Robux.">
+                        ?
+                      </span>
+                    </h3>
+                    <p className="muted" id="breakdownLabel">
+                      {breakdown.label}
+                    </p>
+                    <div className="conversion-output" id="breakdownValue">
+                      {activeMetric === "convert" ? (
+                        <CountUp
+                          value={breakdown.get(totals)}
+                          formatter={(v) => `${Math.round(v).toLocaleString()} Robux`}
+                        />
+                      ) : (
+                        <CountUp
+                          value={breakdown.get(totals)}
+                          formatter={(v) => formatCurrency(v, currency)}
+                        />
+                      )}
+                    </div>
+                    <p className="muted tiny" id="breakdownNote">
+                      {typeof breakdown.note === "function" ? breakdown.note(totals) : breakdown.note}
+                    </p>
+                  </motion.div>
+                </AnimatePresence>
               </div>
-            </div>
+            </motion.div>
 
-            <AnimatePresence initial={false}>
-              {hasCollabs && (
-                <motion.div
-                  className="conversion-box is-visible"
-                  id="splitPayoutsBox"
-                  aria-hidden={!hasCollabs}
-                  initial={{ opacity: 0, x: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 10, scale: 0.98 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  <h3>
-                    Split payouts <span className="hint-icon" data-tooltip="See how much each collaborator receives before withholding.">?</span>
-                  </h3>
-                  <div className="split-payouts" id="splitPayouts">
-                    {splits.map((c) => (
-                      <motion.div className="split-pill" key={c.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}>
-                        <div className="split-dot" />
-                        <div>
-                          <strong>{c.name || "Collaborator"}</strong>
-                          <br />
-                          <span className="muted small">{(Number(c.pct) || 0).toFixed(1)}%</span>
-                        </div>
-                        <div style={{ textAlign: "right" }}>{formatCurrency ? formatCurrency(c.amount, currency) : c.amount}</div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            {hasCollabs && (
+              <motion.div
+                className="conversion-box is-visible"
+                id="splitPayoutsBox"
+                aria-hidden={!hasCollabs}
+                variants={itemVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <h3>
+                  Split payouts <span className="hint-icon" data-tooltip="What each collaborator gets (before your withholding).">?</span>
+                </h3>
+                <div className="split-payouts" id="splitPayouts">
+                  {splits.map((c) => (
+                    <div className="split-pill" key={c.id}>
+                      <div className="split-dot" />
+                      <div>
+                        <strong>{c.name || "Collaborator"}</strong>
+                        <br />
+                        <span className="muted small">{(Number(c.pct) || 0).toFixed(1)}%</span>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        {formatCurrency ? (
+                          <CountUp value={c.amount} formatter={(v) => formatCurrency(v, currency)} />
+                        ) : (
+                          c.amount
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }
