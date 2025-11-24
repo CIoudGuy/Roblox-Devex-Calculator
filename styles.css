@@ -1248,10 +1248,17 @@ input[type="range"] {
 }
 
 .repo-link {
-  color: var(--accent);
+  color: var(--muted);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 12px;
   margin-left: auto;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.repo-link:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .extras-inline {
