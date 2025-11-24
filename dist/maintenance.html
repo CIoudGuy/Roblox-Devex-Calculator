@@ -1,83 +1,324 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DevEx Calculator — Maintenance</title>
-    <style>
-      :root {
-        --bg: radial-gradient(circle at 20% 20%, rgba(119, 197, 255, 0.12), transparent 32%),
-          radial-gradient(circle at 80% 18%, rgba(140, 245, 216, 0.08), transparent 40%), #05060b;
-        --card: rgba(14, 17, 26, 0.92);
-        --text: #f1f4ff;
-        --muted: #9cb3d4;
-        --accent: #77c5ff;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevEx Calculator — Maintenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    (async () => {
+      try {
+        const res = await fetch("/maintenance-flag.json", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.enabled) {
+          window.location.replace("/");
+        }
+      } catch (err) {
+        console.warn("Maintenance status check failed", err);
       }
-      * {
-        box-sizing: border-box;
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #04050c;
+      --card: rgba(10, 12, 20, 0.82);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --text: #f1f4ff;
+      --muted: #9cb3d4;
+      --accent: #f59e0b;
+      /* Amber for maintenance */
+      --accent-glow: rgba(245, 158, 11, 0.5);
+      --radius: 18px;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #gl-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Main Card */
+    .card {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(145deg, rgba(8, 10, 18, 0.94), rgba(10, 14, 24, 0.82));
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 48px 32px;
+      width: min(480px, 90vw);
+      text-align: center;
+      box-shadow: var(--shadow);
+      animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
       }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: var(--bg);
-        color: var(--text);
-        font-family: "Inter", "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
-      .card {
-        background: linear-gradient(150deg, rgba(12, 16, 26, 0.96), rgba(8, 11, 20, 0.9));
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 18px;
-        padding: 28px 24px;
-        width: min(520px, 92vw);
-        text-align: center;
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+    }
+
+    /* Typography */
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(to right, #fff, #cbd5e1);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+
+    /* Button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      /* Keep blue for action */
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+      filter: brightness(1.1);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 99px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
       }
-      h1 {
-        margin: 0 0 10px;
-        font-size: clamp(24px, 4vw, 30px);
+
+      50% {
+        opacity: 0.4;
       }
-      p {
-        margin: 8px 0 18px;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 18px;
-        border-radius: 999px;
-        background: rgba(119, 197, 255, 0.14);
-        border: 1px solid rgba(119, 197, 255, 0.24);
-        color: #e2f2ff;
-        font-weight: 700;
-        text-decoration: none;
-        transition: all 0.2s ease;
-      }
-      .pill:hover {
-        background: rgba(119, 197, 255, 0.24);
-        border-color: rgba(119, 197, 255, 0.45);
-        color: #fff;
-      }
-      .small {
-        font-size: 13px;
-        color: var(--muted);
-        margin-top: 14px;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="card">
-      <div class="pill">Under maintenance</div>
-      <h1>We’ll be back shortly</h1>
-      <p>
-        The DevEx Calculator is temporarily offline while we make updates. Please check back soon. If you need to report
-        an issue, reach out on Discord.
-      </p>
-      <a class="pill" href="https://discord.gg/BE7k9Xxm5z" target="_blank" rel="noopener noreferrer">Join the Discord</a>
-    </main>
-  </body>
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="gl-canvas"></canvas>
+
+  <main class="card">
+    <div class="status-badge">
+      <span class="status-dot"></span>
+      System Maintenance
+    </div>
+
+    <h1>We're improving things</h1>
+    <p>
+      The DevEx Calculator is currently offline for scheduled maintenance. We're pushing some exciting updates and will
+      be back shortly.
+    </p>
+
+    <a class="btn" href="https://discord.gg/BE7k9Xxm5z" target="_blank" rel="noopener noreferrer">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+      </svg>
+      Join our Discord
+    </a>
+  </main>
+
+  <script>
+    // Star Background Logic
+    window.addEventListener('load', () => {
+      const canvas = document.getElementById('gl-canvas');
+      if (!canvas) return;
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.4));
+      renderer.setClearColor(0x000000, 0);
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x05060b, 0.04);
+
+      const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 80);
+      camera.position.set(0, 0, 10);
+
+      // Amber ambient light for maintenance feel
+      const ambient = new THREE.AmbientLight(0xffa500, 0.25);
+      scene.add(ambient);
+
+      const starGroup = new THREE.Group();
+      scene.add(starGroup);
+
+      const makeStars = (count, size, spread, tint) => {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const color = new THREE.Color();
+
+        for (let i = 0; i < count; i++) {
+          const r = spread * (0.5 + Math.random() * 0.5);
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+
+          positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+          positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+          positions[i * 3 + 2] = r * Math.cos(phi);
+
+          // Tint towards amber/orange (HSL ~0.08 - 0.12)
+          color.setHSL(0.08 + Math.random() * 0.06, 0.8, 0.6);
+
+          colors[i * 3] = color.r;
+          colors[i * 3 + 1] = color.g;
+          colors[i * 3 + 2] = color.b;
+        }
+
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+        return new THREE.Points(
+          geometry,
+          new THREE.PointsMaterial({
+            size,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.55,
+            depthWrite: false,
+          })
+        );
+      };
+
+      const layerNear = makeStars(260, 0.04, 6.5, 0.58);
+      const layerMid = makeStars(340, 0.032, 9.5, 0.56);
+      const layerFar = makeStars(520, 0.022, 14, 0.54);
+      starGroup.add(layerFar, layerMid, layerNear);
+
+      const clock = new THREE.Clock();
+      let smoothX = 0.5;
+      let smoothY = 0.5;
+      const pointer = { x: 0.5, y: 0.5 };
+
+      const resize = () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        renderer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      };
+
+      const onPointer = (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = (event.clientX - rect.left) / rect.width;
+        pointer.y = (event.clientY - rect.top) / rect.height;
+      };
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("pointermove", onPointer);
+      resize();
+
+      const lerp = (a, b, t) => a + (b - a) * t;
+
+      const animate = () => {
+        const t = clock.getElapsedTime();
+        smoothX = lerp(smoothX, pointer.x, 0.018);
+        smoothY = lerp(smoothY, pointer.y, 0.018);
+
+        const tiltX = (smoothY - 0.5) * 0.02;
+        const tiltY = (smoothX - 0.5) * 0.038;
+
+        starGroup.rotation.x = tiltX;
+        starGroup.rotation.y = tiltY;
+
+        layerFar.rotation.y = t * -0.004;
+        layerMid.rotation.y = t * 0.0035;
+        layerNear.rotation.y = t * 0.0048;
+        layerNear.rotation.x = t * 0.0018;
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      };
+
+      animate();
+    });
+  </script>
+</body>
+
 </html>
