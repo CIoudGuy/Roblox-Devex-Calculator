@@ -3,6 +3,7 @@ import { blockNonNumericKeys } from "../utils/numbers.js";
 
 export default function InlineSettings({
   currency,
+  onCurrencyChange,
   baseRateInput,
   onBaseRateChange,
   activePreset,
@@ -83,16 +84,16 @@ export default function InlineSettings({
       <div className="settings-grid">
         <section className="settings-section">
           <div className="settings-label">
-          <div>
-            <p className="eyebrow">DevEx rate</p>
-            <h4>
-              USD per Robux{" "}
-              <span className="hint-icon" data-tooltip="Set the DevEx payout per Robux or override it.">
-                ?
-              </span>
-            </h4>
+            <div>
+              <p className="eyebrow">DevEx rate</p>
+              <h4>
+                USD per Robux{" "}
+                <span className="hint-icon" data-tooltip="Set the DevEx payout per Robux or override it.">
+                  ?
+                </span>
+              </h4>
+            </div>
           </div>
-        </div>
           <div className="settings-control">
             <div className="preset-row">
               {presets.map((preset) => (
@@ -123,16 +124,16 @@ export default function InlineSettings({
 
         <section className="settings-section">
           <div className="settings-label">
-          <div>
-            <p className="eyebrow">Exchange</p>
-            <h4>
-              {currency} to USD{" "}
-              <span className="hint-icon" data-tooltip="FX rate used for conversions and reverse Robux math.">
-                ?
-              </span>
-            </h4>
+            <div>
+              <p className="eyebrow">Exchange</p>
+              <h4>
+                {currency} to USD{" "}
+                <span className="hint-icon" data-tooltip="FX rate used for conversions and reverse Robux math.">
+                  ?
+                </span>
+              </h4>
+            </div>
           </div>
-        </div>
           <div className="settings-control">
             <label className="stacked-label">
               <span className="muted tiny">Rate to USD</span>
@@ -153,16 +154,16 @@ export default function InlineSettings({
 
         <section className={`settings-section ${taxHighlight ? "is-highlighted" : ""}`} id="taxSetting">
           <div className="settings-label">
-          <div>
-            <p className="eyebrow">Robux tax</p>
-            <h4>
-              Platform cut{" "}
-              <span className="hint-icon" data-tooltip="Default platform tax percent for the after-tax helper.">
-                ?
-              </span>
-            </h4>
+            <div>
+              <p className="eyebrow">Robux tax</p>
+              <h4>
+                Platform cut{" "}
+                <span className="hint-icon" data-tooltip="Default platform tax percent for the after-tax helper.">
+                  ?
+                </span>
+              </h4>
+            </div>
           </div>
-        </div>
           <div className="settings-control">
             <label className="stacked-label">
               <div className="label-row">

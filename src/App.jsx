@@ -7,6 +7,7 @@ import AdjustmentsPanel from "./components/AdjustmentsPanel.jsx";
 import ResultsCard from "./components/ResultsCard.jsx";
 import StickyBar from "./components/StickyBar.jsx";
 import InlineSettings from "./components/InlineSettings.jsx";
+import BetaNotice from "./components/BetaNotice.jsx";
 import { currencyList, fxToUsd } from "./data/currencies.js";
 import { DEFAULT_BASE_RATE, INPUT_LIMIT, RATE_PRESETS } from "./constants/rates.js";
 import { clamp, formatCurrency, formatNumberInput, parseNumber } from "./utils/numbers.js";
@@ -15,6 +16,7 @@ import { useTotals } from "./hooks/useTotals.js";
 import { useIsMobile } from "./hooks/useIsMobile.js";
 
 const STORAGE_KEY = "devex-config-v1";
+const BETA_DISMISS_KEY = "devex-beta-dismissed-v1";
 
 export default function App() {
   const [robuxInput, setRobuxInput] = useState("");
@@ -31,12 +33,14 @@ export default function App() {
   const [ratePreset, setRatePreset] = useState(RATE_PRESETS[0].id);
   const [baseRateInput, setBaseRateInput] = useState(String(DEFAULT_BASE_RATE));
   const [robuxTaxInput, setRobuxTaxInput] = useState("30");
+  const [fxBaseRates, setFxBaseRates] = useState(fxToUsd);
   const [fxRates, setFxRates] = useState(fxToUsd);
   const [fxInputs, setFxInputs] = useState(() => Object.fromEntries(Object.entries(fxToUsd).map(([code, val]) => [code, String(val)])));
   const [fxOverride, setFxOverride] = useState(false);
   const [fxStatus, setFxStatus] = useState("Updating...");
   const [taxHighlight, setTaxHighlight] = useState(false);
   const [loadedSettings, setLoadedSettings] = useState(false);
+  const [showBetaNotice, setShowBetaNotice] = useState(false);
 
   const isMobile = useIsMobile();
   const activeSplits = splitsEnabled ? splits : [];
@@ -50,7 +54,7 @@ export default function App() {
 
   const robuxTaxPct = useMemo(() => clamp(0, parseNumber(robuxTaxInput), 100), [robuxTaxInput]);
 
-  const fee = 0;
+  const fee = 5;
 
   const totals = useTotals({
     robuxInput,
@@ -77,6 +81,7 @@ export default function App() {
         ];
 
         let rates = null;
+        let baseCode = "USD";
         for (const url of sources) {
           try {
             const res = await fetchWithTimeout(url);
@@ -85,11 +90,13 @@ export default function App() {
             // open.er-api.com format
             if (data?.result === "success" && data?.rates) {
               rates = data.rates;
+              baseCode = (data.base_code || data.base || "USD").toUpperCase?.() || "USD";
               break;
             }
             // exchangerate.host format
             if (data?.rates) {
               rates = data.rates;
+              baseCode = (data.base || "USD").toUpperCase?.() || "USD";
               break;
             }
           } catch {
@@ -104,15 +111,34 @@ export default function App() {
           return;
         }
 
+        const toNumber = (val) => (typeof val === "number" ? val : Number(val));
+        const usdPerBase = baseCode === "USD" ? 1 : toNumber(rates?.USD) > 0 ? toNumber(rates.USD) : null;
+
         const updated = Object.fromEntries(
           currencyList.map(({ code }) => {
-            const apiRate = rates[code];
-            if (!apiRate) return [code, fxToUsd[code] || 1];
-            const rateToUsd = code === "USD" ? 1 : apiRate;
-            const normalized = typeof rateToUsd === "number" ? rateToUsd : Number(rateToUsd) || 1;
-            return [code, Number(normalized.toFixed(6))];
+            if (code === "USD") return ["USD", 1];
+            const rawRate = rates[code];
+            const parsed = toNumber(rawRate);
+            let usdPerUnit = fxToUsd[code] || 1;
+
+            if (parsed > 0) {
+              if (baseCode === "USD") {
+                usdPerUnit = 1 / parsed;
+              } else if (usdPerBase && usdPerBase > 0) {
+                usdPerUnit = usdPerBase / parsed;
+              } else {
+                usdPerUnit = parsed;
+              }
+            }
+
+            if (!Number.isFinite(usdPerUnit) || usdPerUnit <= 0) {
+              usdPerUnit = fxToUsd[code] || 1;
+            }
+
+            return [code, Number(usdPerUnit.toFixed(6))];
           })
         );
+        setFxBaseRates(updated);
         setFxRates(updated);
         setFxInputs(Object.fromEntries(Object.entries(updated).map(([code, val]) => [code, String(val)])));
         setFxStatus(`Live ${new Date().toLocaleTimeString([], { hour12: false })}`);
@@ -176,7 +202,7 @@ export default function App() {
   };
 
   const handleResetAll = () => {
-    const defaultFx = Object.fromEntries(Object.entries(fxToUsd).map(([code, val]) => [code, String(val)]));
+    const defaultFx = Object.fromEntries(Object.entries(fxBaseRates).map(([code, val]) => [code, String(val)]));
     setRobuxInput("");
     setUsdInput("");
     setCurrency("USD");
@@ -190,10 +216,23 @@ export default function App() {
     setBaseRateInput(String(DEFAULT_BASE_RATE));
     setRobuxTaxInput("30");
     setActiveMetric("gross");
-    setFxRates(fxToUsd);
+    setFxRates(fxBaseRates);
     setFxInputs(defaultFx);
     setTaxHighlight(false);
     setFxOverride(false);
+  };
+
+  const handleDismissBetaNotice = () => setShowBetaNotice(false);
+
+  const handleDisableBetaNotice = () => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(BETA_DISMISS_KEY, "1");
+      } catch (err) {
+        console.warn("Failed to store beta preference", err);
+      }
+    }
+    setShowBetaNotice(false);
   };
 
   useEffect(() => {
@@ -250,6 +289,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const shouldShow = window.localStorage.getItem(BETA_DISMISS_KEY) !== "1";
+      setShowBetaNotice(shouldShow);
+    } catch (err) {
+      console.warn("Failed to read beta preference", err);
+      setShowBetaNotice(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!loadedSettings || typeof window === "undefined") return;
     const payload = {
       currency,
@@ -298,7 +348,7 @@ export default function App() {
   };
 
   const resetFxRate = (code) => {
-    const fallback = fxToUsd[code] || 1;
+    const fallback = fxBaseRates[code] || fxToUsd[code] || 1;
     setFxInputs((prev) => ({ ...prev, [code]: String(fallback) }));
     setFxRates((prev) => ({ ...prev, [code]: fallback }));
     setFxOverride(false);
@@ -309,29 +359,37 @@ export default function App() {
     setBaseRateInput(String(preset.value));
   };
 
+  const selectedRateToUsd = fxRates[currency] > 0 ? fxRates[currency] : 1;
+
+  const toDisplayCurrency = useMemo(() => (usdAmount) => usdAmount / selectedRateToUsd, [selectedRateToUsd]);
+
+  const formatDisplayCurrency = useMemo(
+    () => (value) => formatCurrency(toDisplayCurrency(value), currency),
+    [toDisplayCurrency, currency]
+  );
+
   const convertMeta = useMemo(() => {
     const amt = parseNumber(usdInput);
     if (!amt) return null;
-    const rateToUsd = fxRates[currency] > 0 ? fxRates[currency] : 1;
-    const targetUsd = amt * rateToUsd;
+    const targetUsd = amt * selectedRateToUsd;
     const robuxNeeded = Math.ceil(targetUsd / baseRate);
-    return { robuxNeeded, rateToUsd };
-  }, [usdInput, currency, fxRates, baseRate]);
+    return { robuxNeeded, rateToUsd: selectedRateToUsd };
+  }, [usdInput, selectedRateToUsd, baseRate]);
 
   const breakdownMeta = {
     gross: {
       label: "Gross payout",
-      note: () => `Using ${baseRate.toFixed(4)} USD/R$ base rate.`,
+      note: () => "$5 eCheck fee applied.",
       get: (o) => o.totalAfterFee,
     },
     split: {
       label: "After splits",
-      note: (o) => `Your share (${o.yourSharePct.toFixed(1)}%) after splits.`,
+      note: (o) => `${o.yourSharePct.toFixed(1)}% share after $5 fee.`,
       get: (o) => o.shared,
     },
     withholding: {
       label: "After withholding",
-      note: () => `After withholding is applied to your share.`,
+      note: () => "Withholding after $5 fee.",
       get: (o) => o.withheld,
     },
     convert: {
@@ -349,28 +407,79 @@ export default function App() {
       ? convertMeta
         ? `${convertMeta.robuxNeeded.toLocaleString()} Robux`
         : "--"
-      : formatCurrency(breakdown.get(totals), currency);
+      : formatDisplayCurrency(breakdown.get(totals));
+
+  const [isExporting, setIsExporting] = useState(false);
 
   const exportPng = async () => {
-    const node = document.getElementById("resultsCard");
-    if (!node) return;
-    const canvas = await html2canvas(node, {
-      backgroundColor: "#05060b",
-      scale: window.devicePixelRatio > 2 ? 2 : window.devicePixelRatio || 1,
-    });
-    const dataUrl = canvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = "devex-results.png";
-    link.click();
+    setIsExporting(true);
+    // Small delay to allow UI to update (e.g. show spinner)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const originalNode = document.getElementById("resultsCard");
+    if (!originalNode) {
+      setIsExporting(false);
+      return;
+    }
+
+    try {
+      document.body.classList.add("exporting");
+      // Create container
+      const container = document.createElement("div");
+      container.className = "export-mount";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "export-wrapper";
+      const targetWidth = Math.max(900, originalNode.offsetWidth || 0, 720);
+      wrapper.style.width = `${targetWidth}px`;
+
+      // Clone card
+      const clone = originalNode.cloneNode(true);
+      clone.classList.add("export-card");
+
+      // Branding
+      const branding = document.createElement("div");
+      branding.className = "export-branding";
+      branding.innerText = "https://devex-calculator.dev/";
+
+      wrapper.appendChild(clone);
+      wrapper.appendChild(branding);
+      container.appendChild(wrapper);
+      document.body.appendChild(container);
+
+      // Wait for layout
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const canvas = await html2canvas(wrapper, {
+        backgroundColor: "#05060b",
+        scale: 2, // High res
+        logging: false,
+        useCORS: true,
+        ignoreElements: (element) => element.classList.contains("no-export"),
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = "devex-results.png";
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(container);
+    } catch (err) {
+      console.error("Export failed", err);
+    } finally {
+      document.body.classList.remove("exporting");
+      setIsExporting(false);
+    }
   };
 
   const copyNumbers = async () => {
     const summary = [
       `Currency: ${currency}`,
-      `Gross: ${formatCurrency(breakdownMeta.gross.get(totals), currency)}`,
-      `After splits: ${formatCurrency(breakdownMeta.split.get(totals), currency)}`,
-      `After withholding: ${formatCurrency(breakdownMeta.withholding.get(totals), currency)}`,
+      `Gross: ${formatDisplayCurrency(breakdownMeta.gross.get(totals))}`,
+      `After splits: ${formatDisplayCurrency(breakdownMeta.split.get(totals))}`,
+      `After withholding: ${formatDisplayCurrency(breakdownMeta.withholding.get(totals))}`,
       `DevEx rate: ${baseRate.toFixed(4)} USD/R$`,
       `Withholding: ${withhold}%`,
       splits.length ? `Collaborators: ${splits.length}` : "Collaborators: none",
@@ -402,6 +511,7 @@ export default function App() {
   return (
     <>
       <BackgroundCanvas />
+      <BetaNotice open={showBetaNotice} onClose={handleDismissBetaNotice} onDisable={handleDisableBetaNotice} />
       <motion.main
         className="page"
         variants={containerVariants}
@@ -430,6 +540,7 @@ export default function App() {
             <div className={`form-grid ${showAdjustments ? "" : "single"}`}>
               <AmountInputs
                 currency={currency}
+                onCurrencyChange={setCurrency}
                 robuxInput={robuxInput}
                 usdInput={usdInput}
                 robuxTaxPct={robuxTaxPct}
@@ -476,6 +587,7 @@ export default function App() {
                 >
                   <InlineSettings
                     currency={currency}
+                    onCurrencyChange={setCurrency}
                     baseRateInput={baseRateInput}
                     onBaseRateChange={(val) => {
                       setRatePreset(null);
@@ -506,13 +618,14 @@ export default function App() {
             currency={currency}
             onCurrencyChange={setCurrency}
             onExport={exportPng}
-            formatCurrency={formatCurrency}
+            formatCurrency={formatDisplayCurrency}
             hasCollabs={hasCollabs}
             withholdOpen={withholdOpen}
             activeMetric={activeMetric}
             setActiveMetric={setActiveMetric}
             breakdown={breakdown}
             resultValue={resultValue}
+            isExporting={isExporting}
             totals={totals}
             splits={splitsWithAmounts}
           />

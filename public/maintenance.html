@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevEx Calculator — Maintenance</title>
+    <style>
+      :root {
+        --bg: radial-gradient(circle at 20% 20%, rgba(119, 197, 255, 0.12), transparent 32%),
+          radial-gradient(circle at 80% 18%, rgba(140, 245, 216, 0.08), transparent 40%), #05060b;
+        --card: rgba(14, 17, 26, 0.92);
+        --text: #f1f4ff;
+        --muted: #9cb3d4;
+        --accent: #77c5ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Inter", "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+      .card {
+        background: linear-gradient(150deg, rgba(12, 16, 26, 0.96), rgba(8, 11, 20, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 28px 24px;
+        width: min(520px, 92vw);
+        text-align: center;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(24px, 4vw, 30px);
+      }
+      p {
+        margin: 8px 0 18px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: rgba(119, 197, 255, 0.14);
+        border: 1px solid rgba(119, 197, 255, 0.24);
+        color: #e2f2ff;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+      .pill:hover {
+        background: rgba(119, 197, 255, 0.24);
+        border-color: rgba(119, 197, 255, 0.45);
+        color: #fff;
+      }
+      .small {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="pill">Under maintenance</div>
+      <h1>We’ll be back shortly</h1>
+      <p>
+        The DevEx Calculator is temporarily offline while we make updates. Please check back soon. If you need to report
+        an issue, reach out on Discord.
+      </p>
+      <a class="pill" href="https://discord.gg/BE7k9Xxm5z" target="_blank" rel="noopener noreferrer">Join the Discord</a>
+    </main>
+  </body>
+</html>

@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { blockNonNumericKeys } from "../utils/numbers.js";
+import CurrencySelect from "./CurrencySelect.jsx";
 import CountUp from "./CountUp.jsx";
 
 export default function AmountInputs({
   currency,
+  onCurrencyChange,
   robuxInput,
   usdInput,
   robuxTaxPct,
@@ -15,7 +17,10 @@ export default function AmountInputs({
 }) {
   return (
     <motion.div className="input-group" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} layout>
-      <h3>Amounts</h3>
+      <div className="input-head">
+        <h3>Amounts</h3>
+        <CurrencySelect value={currency} onValueChange={onCurrencyChange} />
+      </div>
       <label>
         <div className="label-line">
           Robux to cash out <span className="hint-icon" data-tooltip="Your raw Robux before any cuts.">?</span>

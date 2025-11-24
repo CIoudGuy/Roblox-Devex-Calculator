@@ -4,8 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Roblox DevEx Calculator</title>
-    <script type="module" crossorigin src="/Roblox-Devex-Calculator/assets/index-dDWClbi3.js"></script>
-    <link rel="stylesheet" crossorigin href="/Roblox-Devex-Calculator/assets/index-TFv9YBvg.css">
+    <script>
+      (async () => {
+        try {
+          const res = await fetch("/maintenance-flag.json", { cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data?.enabled) {
+            const target = typeof data.redirect === "string" ? data.redirect : "/maintenance.html";
+            window.location.replace(target);
+          }
+        } catch (err) {
+          console.warn("Maintenance check failed", err);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-LpKQVXPx.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-2_ve8Zf7.css">
   </head>
   <body>
     <div id="root"></div>

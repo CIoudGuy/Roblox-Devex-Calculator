@@ -1,5 +1,4 @@
 import { AnimatePresence, motion } from "framer-motion";
-import CurrencySelect from "./CurrencySelect.jsx";
 import CountUp from "./CountUp.jsx";
 
 const comfySpring = { type: "spring", stiffness: 450, damping: 27 };
@@ -24,6 +23,7 @@ export default function ResultsCard({
   currency,
   onCurrencyChange,
   onExport,
+  isExporting,
   formatCurrency,
   hasCollabs,
   withholdOpen,
@@ -37,20 +37,12 @@ export default function ResultsCard({
   return (
     <motion.section className="card wide" id="resultsCard" layout transition={comfySpring}>
       <div>
-        <div className="card-head">
+        <div className="card-head relative">
           <h2>
             Results <span className="hint-icon" data-tooltip="Payouts with your current settings.">?</span>
           </h2>
           <div className="head-actions">
-            <div className="currency-wrap">
-              <CurrencySelect value={currency} onValueChange={onCurrencyChange} />
-            </div>
-            <button id="exportPng" className="icon-btn slim" type="button" aria-label="Export results as PNG" title="Export PNG" onClick={onExport}>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 4h16v14H4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                <path d="M8 13l3-3 3 3 3-3 2 2v6H4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-              </svg>
-            </button>
+            {/* Export button moved to footer */}
           </div>
         </div>
         <div id="resultsBody">
@@ -186,8 +178,35 @@ export default function ResultsCard({
               </motion.div>
             )}
           </motion.div>
+
+        </div>
+        <div className="card-foot no-export">
+          <button
+            id="exportPng"
+            className={`action-btn ${isExporting ? "loading" : ""}`}
+            type="button"
+            onClick={onExport}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                  <polyline points="16 6 12 2 8 6" />
+                  <line x1="12" y1="2" x2="12" y2="15" />
+                </svg>
+                <span>Share Result</span>
+                <span className="beta-badge">Beta</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
-    </motion.section>
+    </motion.section >
   );
 }
