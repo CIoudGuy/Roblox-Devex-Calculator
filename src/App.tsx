@@ -333,6 +333,7 @@ export default function App() {
     }
   }, []);
 
+
   useEffect(() => {
     if (!loadedSettings || typeof window === "undefined") return;
     const payload = {
