@@ -1247,6 +1247,17 @@ input[type="range"] {
   gap: 4px;
 }
 
+.beta-warning {
+  color: #ffaa00;
+  font-weight: 600;
+  background: rgba(255, 170, 0, 0.1);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(255, 170, 0, 0.05);
+}
+
 .repo-link {
   color: var(--muted);
   text-decoration: none;
@@ -1673,9 +1684,9 @@ input[type="range"] {
   gap: 6px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(119, 197, 255, 0.18);
-  border: 1px solid rgba(119, 197, 255, 0.35);
-  color: #d7eaff;
+  background: rgba(255, 170, 0, 0.15);
+  border: 1px solid rgba(255, 170, 0, 0.3);
+  color: #ffaa00;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 11px;
@@ -2243,9 +2254,9 @@ input[type="range"] {
 }
 
 .beta-chip {
-  background: rgba(119, 197, 255, 0.15);
-  color: #77c5ff;
-  border: 1px solid rgba(119, 197, 255, 0.2);
+  background: rgba(255, 170, 0, 0.15);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 170, 0, 0.3);
   padding: 2px 8px;
   border-radius: 6px;
   font-size: 11px;

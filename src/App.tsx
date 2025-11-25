@@ -682,7 +682,7 @@ export default function App() {
 
         <footer className="footer">
           <div className="beta-note">
-            <span className="beta-text">Still in beta - expect changes.</span>
+            <span className="beta-text beta-warning">Still in beta - expect changes.</span>
             <span className="beta-text">Last updated: {lastUpdated}</span>
             <span className="beta-text small">FX status: {fxStatus || "Live"}</span>
             <a className="repo-link" href="https://github.com/CIoudGuy/Roblox-Devex-Calculator" target="_blank" rel="noopener noreferrer">

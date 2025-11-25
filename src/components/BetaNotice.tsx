@@ -33,9 +33,9 @@ const BetaNotice: FC<BetaNoticeProps> = ({ open, onClose, onDisable }) => {
               <span className="beta-chip">Beta</span>
               <span className="beta-sub">This calculator is still being polished.</span>
             </div>
-            <h3 id="beta-title">Expect things to be broken</h3>
+            <h3 id="beta-title">We're close to launch and still tuning things</h3>
             <p id="beta-desc" className="beta-body">
-              Join our Discord server to report bugs or request features.
+              Share feedback or requests on Discord.
             </p>
             <div className="beta-actions">
               <a
