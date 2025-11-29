@@ -618,10 +618,10 @@ export default function App() {
                     withholdEnabled={withholdEnabled}
                     onToggleSplitsEnabled={toggleSplitsEnabled}
                     onToggleWithholdEnabled={toggleWithholdEnabled}
-                    robuxTaxInput={showBeforeTax ? robuxTaxBeforeInput : robuxTaxAfterInput}
-                    onRobuxTaxChange={(val) =>
-                      showBeforeTax ? setRobuxTaxBeforeInput(val) : setRobuxTaxAfterInput(val)
-                    }
+                    robuxTaxAfter={robuxTaxAfterInput}
+                    setRobuxTaxAfter={setRobuxTaxAfterInput}
+                    robuxTaxBefore={robuxTaxBeforeInput}
+                    setRobuxTaxBefore={setRobuxTaxBeforeInput}
                     defaultRobuxTax={Number(DEFAULT_PLATFORM_CUT)}
                     showBeforeTax={showBeforeTax}
                     onToggleTaxView={() => setShowBeforeTax((v) => !v)}

@@ -16,8 +16,10 @@ type InlineSettingsProps = {
   withholdEnabled: boolean;
   onToggleSplitsEnabled: () => void;
   onToggleWithholdEnabled: () => void;
-  robuxTaxInput: string;
-  onRobuxTaxChange: (value: string) => void;
+  robuxTaxAfter: string;
+  setRobuxTaxAfter: (value: string) => void;
+  robuxTaxBefore: string;
+  setRobuxTaxBefore: (value: string) => void;
   defaultRobuxTax: number;
   showBeforeTax: boolean;
   onToggleTaxView: () => void;
@@ -40,8 +42,10 @@ export default function InlineSettings({
   withholdEnabled,
   onToggleSplitsEnabled,
   onToggleWithholdEnabled,
-  robuxTaxInput,
-  onRobuxTaxChange,
+  robuxTaxAfter,
+  setRobuxTaxAfter,
+  robuxTaxBefore,
+  setRobuxTaxBefore,
   defaultRobuxTax,
   showBeforeTax,
   onToggleTaxView,
@@ -54,9 +58,26 @@ export default function InlineSettings({
     return clamp(1, num, 100);
   };
 
+  const currentTaxInput = showBeforeTax ? robuxTaxBefore : robuxTaxAfter;
+  const setCurrentTaxInput = showBeforeTax ? setRobuxTaxBefore : setRobuxTaxAfter;
+
   const handleTaxChange = (value: string) => {
-    const clamped = clampTax(value);
-    onRobuxTaxChange(String(clamped));
+    if (value === "") {
+      setCurrentTaxInput("");
+      return;
+    }
+    const num = parseNumber(value);
+    if (num > 100) {
+      setCurrentTaxInput("100");
+    } else {
+      setCurrentTaxInput(value);
+    }
+  };
+
+  const handleTaxBlur = () => {
+    const num = parseNumber(currentTaxInput);
+    const clamped = clamp(1, num, 100);
+    setCurrentTaxInput(String(clamped));
   };
 
   const handleTaxPaste: React.ClipboardEventHandler<HTMLInputElement> = (event) => {
@@ -228,26 +249,15 @@ export default function InlineSettings({
                     {showBeforeTax && <motion.div className="segment-bg" layoutId="taxSegment" />}
                   </button>
                 </div>
-                {robuxTaxInput !== String(defaultRobuxTax) && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="reset-link"
-                    type="button"
-                    onClick={() => onRobuxTaxChange(String(defaultRobuxTax))}
-                    title={`Reset to default ${defaultRobuxTax}%`}
-                  >
-                    Reset
-                  </motion.button>
-                )}
               </div>
 
               <label className="stacked-label tax-input-label">
                 <input
+                  key={showBeforeTax ? "tax-before" : "tax-after"}
                   type="text"
-                  value={robuxTaxInput}
+                  value={currentTaxInput}
                   onChange={(e) => handleTaxChange(e.target.value)}
+                  onBlur={handleTaxBlur}
                   onPaste={handleTaxPaste}
                   onKeyDown={blockNonNumericKeys}
                   inputMode="decimal"
@@ -259,6 +269,17 @@ export default function InlineSettings({
                 />
                 <span className="input-suffix">%</span>
               </label>
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="chip-btn ghost"
+                type="button"
+                onClick={() => setCurrentTaxInput(String(defaultRobuxTax))}
+                title={`Reset to default ${defaultRobuxTax}%`}
+              >
+                Reset
+              </motion.button>
             </div>
           </div>
         </section>
