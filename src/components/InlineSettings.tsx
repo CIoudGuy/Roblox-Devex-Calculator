@@ -1,10 +1,9 @@
 import { motion } from "framer-motion";
 import type { CurrencyCode, RatePreset } from "../types";
-import { blockNonNumericKeys } from "../utils/numbers";
+import { blockNonNumericKeys, clamp, parseNumber } from "../utils/numbers";
 
 type InlineSettingsProps = {
   currency: CurrencyCode;
-  onCurrencyChange: (code: CurrencyCode) => void;
   baseRateInput: string;
   onBaseRateChange: (value: string) => void;
   activePreset: string | null;
@@ -20,13 +19,15 @@ type InlineSettingsProps = {
   robuxTaxInput: string;
   onRobuxTaxChange: (value: string) => void;
   defaultRobuxTax: number;
+  showBeforeTax: boolean;
+  onToggleTaxView: () => void;
   taxHighlight: boolean;
   onResetAll: () => void;
+  extrasOpen: boolean;
 };
 
 export default function InlineSettings({
   currency,
-  onCurrencyChange,
   baseRateInput,
   onBaseRateChange,
   activePreset,
@@ -42,9 +43,28 @@ export default function InlineSettings({
   robuxTaxInput,
   onRobuxTaxChange,
   defaultRobuxTax,
+  showBeforeTax,
+  onToggleTaxView,
   taxHighlight,
   onResetAll,
+  extrasOpen,
 }: InlineSettingsProps) {
+  const clampTax = (value: string) => {
+    const num = parseNumber(value);
+    return clamp(1, num, 100);
+  };
+
+  const handleTaxChange = (value: string) => {
+    const clamped = clampTax(value);
+    onRobuxTaxChange(String(clamped));
+  };
+
+  const handleTaxPaste: React.ClipboardEventHandler<HTMLInputElement> = (event) => {
+    event.preventDefault();
+    const pasted = event.clipboardData?.getData("text") || "";
+    handleTaxChange(pasted);
+  };
+
   return (
     <motion.div className="inline-settings" layout>
       <header className="inline-settings__header">
@@ -181,37 +201,65 @@ export default function InlineSettings({
               <p className="eyebrow">Robux tax</p>
               <h4>
                 Platform cut{" "}
-                <span className="hint-icon" data-tooltip="Default platform tax percent for the after-tax helper.">
+                <span className="hint-icon" data-tooltip="Default platform tax percent for the tax helper.">
                   ?
                 </span>
               </h4>
             </div>
           </div>
           <div className="settings-control">
-            <label className="stacked-label">
-              <div className="label-row">
-                <span className="muted tiny">Tax (%)</span>
-                {robuxTaxInput !== String(defaultRobuxTax) && (
+            <div className="tax-control-group">
+              <div className="tax-toggle-row">
+                <div className="segmented-control">
                   <button
+                    type="button"
+                    className={`segment-btn ${!showBeforeTax ? "active" : ""}`}
+                    onClick={() => extrasOpen && showBeforeTax && onToggleTaxView()}
+                  >
+                    After-tax
+                    {!showBeforeTax && <motion.div className="segment-bg" layoutId="taxSegment" />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`segment-btn ${showBeforeTax ? "active" : ""}`}
+                    onClick={() => extrasOpen && !showBeforeTax && onToggleTaxView()}
+                  >
+                    Before-tax
+                    {showBeforeTax && <motion.div className="segment-bg" layoutId="taxSegment" />}
+                  </button>
+                </div>
+                {robuxTaxInput !== String(defaultRobuxTax) && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
                     className="reset-link"
                     type="button"
                     onClick={() => onRobuxTaxChange(String(defaultRobuxTax))}
                     title={`Reset to default ${defaultRobuxTax}%`}
                   >
                     Reset
-                  </button>
+                  </motion.button>
                 )}
               </div>
-              <input
-                type="text"
-                value={robuxTaxInput}
-                onChange={(e) => onRobuxTaxChange(e.target.value)}
-                onKeyDown={blockNonNumericKeys}
-                inputMode="decimal"
-                placeholder={defaultRobuxTax}
-                pattern="[0-9.,]*"
-              />
-            </label>
+
+              <label className="stacked-label tax-input-label">
+                <input
+                  type="text"
+                  value={robuxTaxInput}
+                  onChange={(e) => handleTaxChange(e.target.value)}
+                  onPaste={handleTaxPaste}
+                  onKeyDown={blockNonNumericKeys}
+                  inputMode="decimal"
+                  placeholder={String(defaultRobuxTax)}
+                  pattern="[0-9.,]*"
+                  className="tax-input"
+                  min={1}
+                  max={100}
+                />
+                <span className="input-suffix">%</span>
+              </label>
+            </div>
           </div>
         </section>
       </div>

@@ -192,7 +192,6 @@
     </main>
 
     <script>
-        // Star Background Logic
         window.addEventListener('load', () => {
             const canvas = document.getElementById('gl-canvas');
             if (!canvas) return;
@@ -207,7 +206,6 @@
             const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 80);
             camera.position.set(0, 0, 10);
 
-            // Red ambient light for error feel
             const ambient = new THREE.AmbientLight(0xef4444, 0.25);
             scene.add(ambient);
 
@@ -229,7 +227,6 @@
                     positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
                     positions[i * 3 + 2] = r * Math.cos(phi);
 
-                    // Tint towards red (HSL ~0.0 - 0.05)
                     color.setHSL(0.0 + Math.random() * 0.04, 0.8, 0.6);
 
                     colors[i * 3] = color.r;

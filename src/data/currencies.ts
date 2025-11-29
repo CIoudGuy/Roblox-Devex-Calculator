@@ -1,4 +1,4 @@
-import type { Currency, CurrencyCode, FxRates } from "../types";
+import type { Currency, FxRates } from "../types";
 
 export const currencyList: Currency[] = [
   { code: "USD", name: "US Dollar", rateToUsd: 1 },

@@ -10,10 +10,13 @@ type AmountInputsProps = {
   robuxInput: string;
   usdInput: string;
   robuxTaxPct: number;
+  showBeforeTax: boolean;
+  beforeTaxRobux: number;
   afterTaxRobux: number;
   onRobuxChange: (value: string) => void;
   onUsdChange: (value: string) => void;
   onOpenTaxSettings: () => void;
+  onToggleTaxView: () => void;
   onActiveMetricChange?: (metric: BreakdownKey) => void;
 };
 
@@ -23,14 +26,20 @@ export default function AmountInputs({
   robuxInput,
   usdInput,
   robuxTaxPct,
+  showBeforeTax,
+  beforeTaxRobux,
   afterTaxRobux,
   onRobuxChange,
   onUsdChange,
   onOpenTaxSettings,
+  onToggleTaxView,
   onActiveMetricChange,
 }: AmountInputsProps) {
+  const taxLabel = showBeforeTax ? "Before" : "After";
+  const taxValue = showBeforeTax ? afterTaxRobux : beforeTaxRobux;
+
   return (
-    <motion.div className="input-group" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} layout>
+    <motion.div className="input-group" layout>
       <div className="input-head">
         <h3>Amounts</h3>
         <CurrencySelect value={currency} onValueChange={onCurrencyChange} />
@@ -49,18 +58,21 @@ export default function AmountInputs({
           placeholder="e.g. 125,000"
           pattern="[0-9.,]*"
         />
-        <div className="tax-pill">
+        <motion.div className="tax-pill" layout>
           <div className="tax-info">
-            <span>After</span>
+            <button type="button" className="tax-switch" onClick={onToggleTaxView}>
+              <span className="muted">Tax:</span>
+              <span className="tax-mode-text">{taxLabel}</span>
+            </button>
             <button type="button" className="tax-edit-btn" onClick={onOpenTaxSettings}>
               {robuxTaxPct.toFixed(1)}%
             </button>
-            <span>tax</span>
           </div>
-          <div className="tax-result">
-            <CountUp value={afterTaxRobux} formatter={(v) => `${Math.round(v).toLocaleString()} R$`} />
-          </div>
-        </div>
+          <CountUp
+            value={Number.isFinite(taxValue) ? taxValue : 0}
+            formatter={(v) => `${Math.round(v).toLocaleString()} R$`}
+          />
+        </motion.div>
       </label>
       <label>
         <div className="label-line">

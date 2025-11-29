@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import html2canvas from "html2canvas";
 import BackgroundCanvas from "./components/BackgroundCanvas";
 import AmountInputs from "./components/AmountInputs";
 import AdjustmentsPanel from "./components/AdjustmentsPanel";
@@ -18,6 +17,7 @@ import type { BreakdownItem, BreakdownKey, CurrencyCode, FxRates, RatePreset, Sp
 
 const STORAGE_KEY = "devex-config-v1";
 const BETA_DISMISS_KEY = "devex-beta-dismissed-v1";
+const DEFAULT_PLATFORM_CUT = "30";
 
 type ConvertMeta = {
   robuxNeeded: number;
@@ -38,7 +38,8 @@ export default function App() {
   const [withholdEnabled, setWithholdEnabled] = useState<boolean>(false);
   const [ratePreset, setRatePreset] = useState<string | null>(RATE_PRESETS[0].id);
   const [baseRateInput, setBaseRateInput] = useState<string>(String(DEFAULT_BASE_RATE));
-  const [robuxTaxInput, setRobuxTaxInput] = useState<string>("30");
+  const [robuxTaxAfterInput, setRobuxTaxAfterInput] = useState<string>(DEFAULT_PLATFORM_CUT);
+  const [robuxTaxBeforeInput, setRobuxTaxBeforeInput] = useState<string>(DEFAULT_PLATFORM_CUT);
   const [fxBaseRates, setFxBaseRates] = useState<FxRates>(fxToUsd);
   const [fxRates, setFxRates] = useState<FxRates>(fxToUsd);
   const [fxInputs, setFxInputs] = useState<Record<CurrencyCode, string>>(
@@ -52,6 +53,7 @@ export default function App() {
   const [taxHighlight, setTaxHighlight] = useState<boolean>(false);
   const [loadedSettings, setLoadedSettings] = useState<boolean>(false);
   const [showBetaNotice, setShowBetaNotice] = useState<boolean>(false);
+  const [showBeforeTax, setShowBeforeTax] = useState<boolean>(false);
 
   const isMobile = useIsMobile();
   const activeSplits = splitsEnabled ? splits : [];
@@ -63,7 +65,9 @@ export default function App() {
     return parsed > 0 ? parsed : DEFAULT_BASE_RATE;
   }, [baseRateInput]);
 
-  const robuxTaxPct = useMemo<number>(() => clamp(0, parseNumber(robuxTaxInput), 100), [robuxTaxInput]);
+  const afterTaxPct = useMemo<number>(() => clamp(0, parseNumber(robuxTaxAfterInput), 100), [robuxTaxAfterInput]);
+  const beforeTaxPct = useMemo<number>(() => clamp(0, parseNumber(robuxTaxBeforeInput), 100), [robuxTaxBeforeInput]);
+  const robuxTaxPct = showBeforeTax ? beforeTaxPct : afterTaxPct;
 
   const fee = 5;
 
@@ -98,13 +102,11 @@ export default function App() {
             const res = await fetchWithTimeout(url);
             if (!res.ok) continue;
             const data: any = await res.json();
-            // open.er-api.com format
             if (data?.result === "success" && data?.rates) {
               rates = data.rates;
               baseCode = (data.base_code || data.base || "USD").toUpperCase?.() || "USD";
               break;
             }
-            // exchangerate.host format
             if (data?.rates) {
               rates = data.rates;
               baseCode = (data.base || "USD").toUpperCase?.() || "USD";
@@ -205,11 +207,19 @@ export default function App() {
       return next;
     });
 
+  const beforeTaxRobux = useMemo(() => {
+    const raw = parseNumber(robuxInput);
+    const divisor = Math.max(0.01, 1 - beforeTaxPct / 100);
+    const preTax = raw / divisor;
+    return Number.isFinite(preTax) ? Math.max(0, Math.round(preTax)) : 0;
+  }, [robuxInput, beforeTaxPct]);
+
   const afterTaxRobux = useMemo(() => {
     const raw = parseNumber(robuxInput);
-    const rate = 1 - robuxTaxPct / 100;
-    return Math.max(0, Math.round(raw * rate));
-  }, [robuxInput, robuxTaxPct]);
+    const rate = Math.max(0, 1 - afterTaxPct / 100);
+    const postTax = raw * rate;
+    return Number.isFinite(postTax) ? Math.max(0, Math.round(postTax)) : 0;
+  }, [robuxInput, afterTaxPct]);
 
   const handleOpenTaxSettings = () => {
     setExtrasOpen(true);
@@ -232,12 +242,15 @@ export default function App() {
     setSplits([]);
     setRatePreset(RATE_PRESETS[0].id);
     setBaseRateInput(String(DEFAULT_BASE_RATE));
-    setRobuxTaxInput("30");
+    setRobuxTaxAfterInput(DEFAULT_PLATFORM_CUT);
+    setRobuxTaxBeforeInput(DEFAULT_PLATFORM_CUT);
+    setShowBeforeTax(false);
     setActiveMetric("gross");
     setFxRates(fxBaseRates);
     setFxInputs(defaultFx);
     setTaxHighlight(false);
     setFxOverride(false);
+    setShowBeforeTax(false);
   };
 
   const handleDismissBetaNotice = () => setShowBetaNotice(false);
@@ -288,9 +301,12 @@ export default function App() {
         splitsEnabled: boolean;
         baseRateInput: string;
         ratePreset: string | null;
-        robuxTaxInput: string;
+        robuxTaxAfterInput: string;
+        robuxTaxBeforeInput: string;
         fxOverride: boolean;
         fxInputs: Record<string, number | string>;
+        showBeforeTax: boolean;
+        robuxTaxInput?: string;
       }>;
       if (data && typeof data === "object") {
         if (typeof data.currency === "string") setCurrency(data.currency);
@@ -299,8 +315,19 @@ export default function App() {
         if (typeof data.splitsEnabled === "boolean") setSplitsEnabled(data.splitsEnabled);
         if (typeof data.baseRateInput === "string") setBaseRateInput(data.baseRateInput);
         if (typeof data.ratePreset === "string") setRatePreset(data.ratePreset);
-        if (typeof data.robuxTaxInput === "string") setRobuxTaxInput(data.robuxTaxInput);
+        const legacyTax = typeof data.robuxTaxInput === "string" ? data.robuxTaxInput : undefined;
+        if (typeof data.robuxTaxAfterInput === "string") {
+          setRobuxTaxAfterInput(data.robuxTaxAfterInput);
+        } else if (legacyTax) {
+          setRobuxTaxAfterInput(legacyTax);
+        }
+        if (typeof data.robuxTaxBeforeInput === "string") {
+          setRobuxTaxBeforeInput(data.robuxTaxBeforeInput);
+        } else if (legacyTax) {
+          setRobuxTaxBeforeInput(legacyTax);
+        }
         if (typeof data.fxOverride === "boolean") setFxOverride(data.fxOverride);
+        if (typeof data.showBeforeTax === "boolean") setShowBeforeTax(data.showBeforeTax);
         if (data.fxInputs && typeof data.fxInputs === "object") {
           const merged: FxRates = { ...fxToUsd };
           Object.entries(data.fxInputs).forEach(([code, val]) => {
@@ -343,9 +370,11 @@ export default function App() {
       splitsEnabled,
       baseRateInput,
       ratePreset,
-      robuxTaxInput,
+      robuxTaxAfterInput,
+      robuxTaxBeforeInput,
       fxInputs,
       fxOverride,
+      showBeforeTax,
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -361,9 +390,11 @@ export default function App() {
     splits,
     baseRateInput,
     ratePreset,
-    robuxTaxInput,
+    robuxTaxAfterInput,
+    robuxTaxBeforeInput,
     fxInputs,
     fxOverride,
+    showBeforeTax,
   ]);
 
   const handleAddSplit = () => {
@@ -454,72 +485,6 @@ export default function App() {
   };
 
   const breakdown = breakdownMeta[activeMetric] || breakdownMeta.gross;
-  const resultValue =
-    activeMetric === "convert"
-      ? convertMeta
-        ? `${convertMeta.robuxNeeded.toLocaleString()} Robux`
-        : "--"
-      : formatDisplayCurrency(breakdown.get(totals));
-
-  const [isExporting, setIsExporting] = useState(false);
-
-  const exportPng = async () => {
-    setIsExporting(true);
-    // Small delay to allow UI to update (e.g. show spinner)
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    const originalNode = document.getElementById("resultsCard");
-    if (!(originalNode instanceof HTMLElement)) {
-      setIsExporting(false);
-      return;
-    }
-
-    try {
-      document.body.classList.add("exporting");
-      const container = document.createElement("div");
-      container.className = "export-mount";
-
-      const wrapper = document.createElement("div");
-      wrapper.className = "export-wrapper";
-      const targetWidth = Math.max(900, originalNode.offsetWidth || 0, 720);
-      wrapper.style.width = `${targetWidth}px`;
-
-      const clone = originalNode.cloneNode(true) as HTMLElement;
-      clone.classList.add("export-card");
-
-      const branding = document.createElement("div");
-      branding.className = "export-branding";
-      branding.innerText = "https://devex-calculator.dev/";
-
-      wrapper.appendChild(clone);
-      wrapper.appendChild(branding);
-      container.appendChild(wrapper);
-      document.body.appendChild(container);
-
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-      const canvas = await html2canvas(wrapper, {
-        backgroundColor: "#05060b",
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        ignoreElements: (element) => element.classList.contains("no-export"),
-      });
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = "devex-results.png";
-      link.click();
-
-      document.body.removeChild(container);
-    } catch (err) {
-      console.error("Export failed", err);
-    } finally {
-      document.body.classList.remove("exporting");
-      setIsExporting(false);
-    }
-  };
 
   const copyNumbers = async () => {
     const summary = [
@@ -551,9 +516,10 @@ export default function App() {
 
   const hasModifiedExtras = useMemo(() => {
     const isBaseRateModified = baseRateInput !== String(DEFAULT_BASE_RATE);
-    const isTaxModified = robuxTaxInput !== "30";
+    const isTaxModified =
+      robuxTaxAfterInput !== DEFAULT_PLATFORM_CUT || robuxTaxBeforeInput !== DEFAULT_PLATFORM_CUT;
     return isBaseRateModified || isTaxModified || fxOverride;
-  }, [baseRateInput, robuxTaxInput, fxOverride]);
+  }, [baseRateInput, robuxTaxAfterInput, robuxTaxBeforeInput, fxOverride]);
 
   return (
     <>
@@ -591,7 +557,10 @@ export default function App() {
                 robuxInput={robuxInput}
                 usdInput={usdInput}
                 robuxTaxPct={robuxTaxPct}
+                showBeforeTax={showBeforeTax}
+                beforeTaxRobux={beforeTaxRobux}
                 afterTaxRobux={afterTaxRobux}
+                onToggleTaxView={() => setShowBeforeTax((v) => !v)}
                 onOpenTaxSettings={handleOpenTaxSettings}
                 onRobuxChange={(val) => setRobuxInput(formatNumberInput(val, 0, INPUT_LIMIT))}
                 onUsdChange={(val) => {
@@ -634,7 +603,6 @@ export default function App() {
                 >
                   <InlineSettings
                     currency={currency}
-                    onCurrencyChange={setCurrency}
                     baseRateInput={baseRateInput}
                     onBaseRateChange={(val) => {
                       setRatePreset(null);
@@ -650,11 +618,16 @@ export default function App() {
                     withholdEnabled={withholdEnabled}
                     onToggleSplitsEnabled={toggleSplitsEnabled}
                     onToggleWithholdEnabled={toggleWithholdEnabled}
-                    robuxTaxInput={robuxTaxInput}
-                    onRobuxTaxChange={setRobuxTaxInput}
-                    defaultRobuxTax={30}
+                    robuxTaxInput={showBeforeTax ? robuxTaxBeforeInput : robuxTaxAfterInput}
+                    onRobuxTaxChange={(val) =>
+                      showBeforeTax ? setRobuxTaxBeforeInput(val) : setRobuxTaxAfterInput(val)
+                    }
+                    defaultRobuxTax={Number(DEFAULT_PLATFORM_CUT)}
+                    showBeforeTax={showBeforeTax}
+                    onToggleTaxView={() => setShowBeforeTax((v) => !v)}
                     taxHighlight={taxHighlight}
                     onResetAll={handleResetAll}
+                    extrasOpen={extrasOpen}
                   />
                 </motion.div>
               )}
@@ -663,22 +636,18 @@ export default function App() {
 
           <ResultsCard
             currency={currency}
-            onCurrencyChange={setCurrency}
-            onExport={exportPng}
             formatCurrency={formatDisplayCurrency}
             hasCollabs={hasCollabs}
             withholdOpen={withholdOpen}
             activeMetric={activeMetric}
             setActiveMetric={setActiveMetric}
             breakdown={breakdown}
-            resultValue={resultValue}
-            isExporting={isExporting}
             totals={totals}
             splits={splitsWithAmounts}
           />
         </section>
 
-        <StickyBar onExport={exportPng} onCopy={copyNumbers} />
+        <StickyBar onCopy={copyNumbers} />
 
         <footer className="footer">
           <div className="beta-note">
