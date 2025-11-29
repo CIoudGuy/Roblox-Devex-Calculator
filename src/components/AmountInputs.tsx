@@ -36,7 +36,7 @@ export default function AmountInputs({
   onActiveMetricChange,
 }: AmountInputsProps) {
   const taxLabel = showBeforeTax ? "Before" : "After";
-  const taxValue = showBeforeTax ? afterTaxRobux : beforeTaxRobux;
+  const taxValue = showBeforeTax ? beforeTaxRobux : afterTaxRobux;
 
   return (
     <motion.div className="input-group" layout>

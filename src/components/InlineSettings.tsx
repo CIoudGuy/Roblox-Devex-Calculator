@@ -16,10 +16,8 @@ type InlineSettingsProps = {
   withholdEnabled: boolean;
   onToggleSplitsEnabled: () => void;
   onToggleWithholdEnabled: () => void;
-  robuxTaxAfter: string;
-  setRobuxTaxAfter: (value: string) => void;
-  robuxTaxBefore: string;
-  setRobuxTaxBefore: (value: string) => void;
+  platformTax: string;
+  setPlatformTax: (value: string) => void;
   defaultRobuxTax: number;
   showBeforeTax: boolean;
   onToggleTaxView: () => void;
@@ -42,10 +40,8 @@ export default function InlineSettings({
   withholdEnabled,
   onToggleSplitsEnabled,
   onToggleWithholdEnabled,
-  robuxTaxAfter,
-  setRobuxTaxAfter,
-  robuxTaxBefore,
-  setRobuxTaxBefore,
+  platformTax,
+  setPlatformTax,
   defaultRobuxTax,
   showBeforeTax,
   onToggleTaxView,
@@ -58,8 +54,8 @@ export default function InlineSettings({
     return clamp(1, num, 100);
   };
 
-  const currentTaxInput = showBeforeTax ? robuxTaxBefore : robuxTaxAfter;
-  const setCurrentTaxInput = showBeforeTax ? setRobuxTaxBefore : setRobuxTaxAfter;
+  const currentTaxInput = platformTax;
+  const setCurrentTaxInput = setPlatformTax;
 
   const handleTaxChange = (value: string) => {
     if (value === "") {

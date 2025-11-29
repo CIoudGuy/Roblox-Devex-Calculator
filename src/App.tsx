@@ -38,8 +38,7 @@ export default function App() {
   const [withholdEnabled, setWithholdEnabled] = useState<boolean>(false);
   const [ratePreset, setRatePreset] = useState<string | null>(RATE_PRESETS[0].id);
   const [baseRateInput, setBaseRateInput] = useState<string>(String(DEFAULT_BASE_RATE));
-  const [robuxTaxAfterInput, setRobuxTaxAfterInput] = useState<string>(DEFAULT_PLATFORM_CUT);
-  const [robuxTaxBeforeInput, setRobuxTaxBeforeInput] = useState<string>(DEFAULT_PLATFORM_CUT);
+  const [platformTaxInput, setPlatformTaxInput] = useState<string>(DEFAULT_PLATFORM_CUT);
   const [fxBaseRates, setFxBaseRates] = useState<FxRates>(fxToUsd);
   const [fxRates, setFxRates] = useState<FxRates>(fxToUsd);
   const [fxInputs, setFxInputs] = useState<Record<CurrencyCode, string>>(
@@ -65,9 +64,8 @@ export default function App() {
     return parsed > 0 ? parsed : DEFAULT_BASE_RATE;
   }, [baseRateInput]);
 
-  const afterTaxPct = useMemo<number>(() => clamp(0, parseNumber(robuxTaxAfterInput), 100), [robuxTaxAfterInput]);
-  const beforeTaxPct = useMemo<number>(() => clamp(0, parseNumber(robuxTaxBeforeInput), 100), [robuxTaxBeforeInput]);
-  const robuxTaxPct = showBeforeTax ? beforeTaxPct : afterTaxPct;
+  const platformTaxPct = useMemo<number>(() => clamp(0, parseNumber(platformTaxInput), 100), [platformTaxInput]);
+  const robuxTaxPct = platformTaxPct;
 
   const fee = 5;
 
@@ -209,17 +207,17 @@ export default function App() {
 
   const beforeTaxRobux = useMemo(() => {
     const raw = parseNumber(robuxInput);
-    const divisor = Math.max(0.01, 1 - beforeTaxPct / 100);
+    const divisor = Math.max(0.01, 1 - platformTaxPct / 100);
     const preTax = raw / divisor;
     return Number.isFinite(preTax) ? Math.max(0, Math.round(preTax)) : 0;
-  }, [robuxInput, beforeTaxPct]);
+  }, [robuxInput, platformTaxPct]);
 
   const afterTaxRobux = useMemo(() => {
     const raw = parseNumber(robuxInput);
-    const rate = Math.max(0, 1 - afterTaxPct / 100);
+    const rate = Math.max(0, 1 - platformTaxPct / 100);
     const postTax = raw * rate;
     return Number.isFinite(postTax) ? Math.max(0, Math.round(postTax)) : 0;
-  }, [robuxInput, afterTaxPct]);
+  }, [robuxInput, platformTaxPct]);
 
   const handleOpenTaxSettings = () => {
     setExtrasOpen(true);
@@ -242,8 +240,7 @@ export default function App() {
     setSplits([]);
     setRatePreset(RATE_PRESETS[0].id);
     setBaseRateInput(String(DEFAULT_BASE_RATE));
-    setRobuxTaxAfterInput(DEFAULT_PLATFORM_CUT);
-    setRobuxTaxBeforeInput(DEFAULT_PLATFORM_CUT);
+    setPlatformTaxInput(DEFAULT_PLATFORM_CUT);
     setShowBeforeTax(false);
     setActiveMetric("gross");
     setFxRates(fxBaseRates);
@@ -301,11 +298,13 @@ export default function App() {
         splitsEnabled: boolean;
         baseRateInput: string;
         ratePreset: string | null;
-        robuxTaxAfterInput: string;
-        robuxTaxBeforeInput: string;
+        platformTaxInput: string;
         fxOverride: boolean;
         fxInputs: Record<string, number | string>;
         showBeforeTax: boolean;
+        // Legacy
+        robuxTaxAfterInput?: string;
+        robuxTaxBeforeInput?: string;
         robuxTaxInput?: string;
       }>;
       if (data && typeof data === "object") {
@@ -316,15 +315,12 @@ export default function App() {
         if (typeof data.baseRateInput === "string") setBaseRateInput(data.baseRateInput);
         if (typeof data.ratePreset === "string") setRatePreset(data.ratePreset);
         const legacyTax = typeof data.robuxTaxInput === "string" ? data.robuxTaxInput : undefined;
-        if (typeof data.robuxTaxAfterInput === "string") {
-          setRobuxTaxAfterInput(data.robuxTaxAfterInput);
+        if (typeof data.platformTaxInput === "string") {
+          setPlatformTaxInput(data.platformTaxInput);
+        } else if (typeof data.robuxTaxAfterInput === "string") {
+          setPlatformTaxInput(data.robuxTaxAfterInput);
         } else if (legacyTax) {
-          setRobuxTaxAfterInput(legacyTax);
-        }
-        if (typeof data.robuxTaxBeforeInput === "string") {
-          setRobuxTaxBeforeInput(data.robuxTaxBeforeInput);
-        } else if (legacyTax) {
-          setRobuxTaxBeforeInput(legacyTax);
+          setPlatformTaxInput(legacyTax);
         }
         if (typeof data.fxOverride === "boolean") setFxOverride(data.fxOverride);
         if (typeof data.showBeforeTax === "boolean") setShowBeforeTax(data.showBeforeTax);
@@ -370,8 +366,7 @@ export default function App() {
       splitsEnabled,
       baseRateInput,
       ratePreset,
-      robuxTaxAfterInput,
-      robuxTaxBeforeInput,
+      platformTaxInput,
       fxInputs,
       fxOverride,
       showBeforeTax,
@@ -390,8 +385,7 @@ export default function App() {
     splits,
     baseRateInput,
     ratePreset,
-    robuxTaxAfterInput,
-    robuxTaxBeforeInput,
+    platformTaxInput,
     fxInputs,
     fxOverride,
     showBeforeTax,
@@ -516,10 +510,9 @@ export default function App() {
 
   const hasModifiedExtras = useMemo(() => {
     const isBaseRateModified = baseRateInput !== String(DEFAULT_BASE_RATE);
-    const isTaxModified =
-      robuxTaxAfterInput !== DEFAULT_PLATFORM_CUT || robuxTaxBeforeInput !== DEFAULT_PLATFORM_CUT;
+    const isTaxModified = platformTaxInput !== DEFAULT_PLATFORM_CUT;
     return isBaseRateModified || isTaxModified || fxOverride;
-  }, [baseRateInput, robuxTaxAfterInput, robuxTaxBeforeInput, fxOverride]);
+  }, [baseRateInput, platformTaxInput, fxOverride]);
 
   return (
     <>
@@ -618,10 +611,8 @@ export default function App() {
                     withholdEnabled={withholdEnabled}
                     onToggleSplitsEnabled={toggleSplitsEnabled}
                     onToggleWithholdEnabled={toggleWithholdEnabled}
-                    robuxTaxAfter={robuxTaxAfterInput}
-                    setRobuxTaxAfter={setRobuxTaxAfterInput}
-                    robuxTaxBefore={robuxTaxBeforeInput}
-                    setRobuxTaxBefore={setRobuxTaxBeforeInput}
+                    platformTax={platformTaxInput}
+                    setPlatformTax={setPlatformTaxInput}
                     defaultRobuxTax={Number(DEFAULT_PLATFORM_CUT)}
                     showBeforeTax={showBeforeTax}
                     onToggleTaxView={() => setShowBeforeTax((v) => !v)}
