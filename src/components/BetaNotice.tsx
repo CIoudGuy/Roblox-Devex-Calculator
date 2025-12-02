@@ -5,9 +5,10 @@ type BetaNoticeProps = {
   open: boolean;
   onClose: () => void;
   onDisable: () => void;
+  onOpenFeedback?: () => void;
 };
 
-const BetaNotice: FC<BetaNoticeProps> = ({ open, onClose, onDisable }) => {
+const BetaNotice: FC<BetaNoticeProps> = ({ open, onClose, onDisable, onOpenFeedback }) => {
   return (
     <AnimatePresence>
       {open && (
@@ -38,6 +39,11 @@ const BetaNotice: FC<BetaNoticeProps> = ({ open, onClose, onDisable }) => {
               Share feedback or requests on Discord.
             </p>
             <div className="beta-actions">
+              {onOpenFeedback && (
+                <button className="beta-link-btn" type="button" onClick={onOpenFeedback}>
+                  Send feedback
+                </button>
+              )}
               <a
                 className="beta-link-btn"
                 href="https://discord.gg/BE7k9Xxm5z"

@@ -7,17 +7,28 @@ import ResultsCard from "./components/ResultsCard";
 import StickyBar from "./components/StickyBar";
 import InlineSettings from "./components/InlineSettings";
 import BetaNotice from "./components/BetaNotice";
+import Feedback from "./components/Feedback";
+import ThemeMenu, { type Theme } from "./components/ThemeMenu";
+import WelcomeThemeModal from "./components/WelcomeThemeModal";
 import { currencyList, fxToUsd } from "./data/currencies";
 import { DEFAULT_BASE_RATE, INPUT_LIMIT, RATE_PRESETS } from "./constants/rates";
 import { clamp, formatCurrency, formatNumberInput, parseNumber } from "./utils/numbers";
 import { defaultSplit } from "./utils/splits";
 import { useTotals } from "./hooks/useTotals";
 import { useIsMobile } from "./hooks/useIsMobile";
-import type { BreakdownItem, BreakdownKey, CurrencyCode, FxRates, RatePreset, Split } from "./types";
+import type {
+  BreakdownItem,
+  BreakdownKey,
+  CurrencyCode,
+  FxRates,
+  RatePreset,
+  Split,
+} from "./types";
 
 const STORAGE_KEY = "devex-config-v1";
 const BETA_DISMISS_KEY = "devex-beta-dismissed-v1";
 const DEFAULT_PLATFORM_CUT = "30";
+const FX_CACHE_KEY = "devex-fx-cache-v1";
 
 type ConvertMeta = {
   robuxNeeded: number;
@@ -34,6 +45,43 @@ export default function App() {
   const [withholdOpen, setWithholdOpen] = useState<boolean>(false);
   const [splitsOpen, setSplitsOpen] = useState<boolean>(false);
   const [extrasOpen, setExtrasOpen] = useState<boolean>(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>("default");
+  const [hasChosenTheme, setHasChosenTheme] = useState<boolean>(false);
+  const [betaDismissed, setBetaDismissed] = useState<boolean>(false);
+  const [betaDismissedSession, setBetaDismissedSession] = useState<boolean>(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as Theme | null;
+    const hasSeenWelcome = localStorage.getItem("theme-seen");
+
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      setHasChosenTheme(true);
+    }
+
+    if (!hasSeenWelcome) {
+      setTimeout(() => setWelcomeOpen(true), 1000);
+    } else {
+      setHasChosenTheme(true);
+    }
+  }, []);
+
+  const handleSetTheme = (newTheme: Theme) => {
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    localStorage.setItem("theme-seen", "true");
+    setHasChosenTheme(true);
+    document.documentElement.setAttribute("data-theme", newTheme);
+  };
+
+  const handleWelcomeClose = () => {
+    setWelcomeOpen(false);
+    localStorage.setItem("theme-seen", "true");
+    setHasChosenTheme(true);
+  };
   const [splitsEnabled, setSplitsEnabled] = useState<boolean>(false);
   const [withholdEnabled, setWithholdEnabled] = useState<boolean>(false);
   const [ratePreset, setRatePreset] = useState<string | null>(RATE_PRESETS[0].id);
@@ -49,10 +97,20 @@ export default function App() {
   );
   const [fxOverride, setFxOverride] = useState<boolean>(false);
   const [fxStatus, setFxStatus] = useState<string>("Updating...");
+  const [lastFxUpdated, setLastFxUpdated] = useState<number | null>(null);
+  const [fxSource, setFxSource] = useState<string | null>(null);
   const [taxHighlight, setTaxHighlight] = useState<boolean>(false);
   const [loadedSettings, setLoadedSettings] = useState<boolean>(false);
   const [showBetaNotice, setShowBetaNotice] = useState<boolean>(false);
   const [showBeforeTax, setShowBeforeTax] = useState<boolean>(false);
+
+  const formatDate = (ts: number) =>
+    new Date(ts).toLocaleDateString([], {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Etc/GMT-2",
+    });
 
   const isMobile = useIsMobile();
   const activeSplits = splitsEnabled ? splits : [];
@@ -78,8 +136,52 @@ export default function App() {
   });
 
   useEffect(() => {
-    setFxStatus("Updating...");
+    if (typeof window === "undefined") return;
+    try {
+      const cached = window.localStorage.getItem(FX_CACHE_KEY);
+      if (!cached) return;
+      const data = JSON.parse(cached) as { rates?: FxRates; ts?: number; source?: string };
+      if (!data?.rates || typeof data.rates !== "object") return;
+      const merged: FxRates = { ...fxToUsd };
+      Object.entries(data.rates).forEach(([code, val]) => {
+        const num = parseNumber(val);
+        if (num > 0) merged[code as CurrencyCode] = num;
+      });
+      setFxBaseRates(merged);
+      setFxRates(merged);
+      if (typeof data.ts === "number" && Number.isFinite(data.ts)) {
+        setLastFxUpdated(data.ts);
+        setFxSource(data.source || "Cache");
+        setFxStatus(`Cached • ${formatDate(data.ts)}`);
+      }
+      setFxInputs(
+        Object.fromEntries(
+          Object.entries(merged).map(([code, val]) => [code as CurrencyCode, String(val)])
+        ) as Record<CurrencyCode, string>
+      );
+    } catch (err) {
+      console.warn("Failed to load FX cache", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    setFxStatus(
+      lastFxUpdated ? `Updating... • last ${formatDate(lastFxUpdated)}` : "Updating..."
+    );
     let isActive = true;
+    const extractUpdatedTs = (data: any): number | null => {
+      if (typeof data?.time_last_update_unix === "number") {
+        return data.time_last_update_unix * 1000;
+      }
+      if (typeof data?.time_last_update === "string") {
+        const parsed = Date.parse(data.time_last_update);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      if (typeof data?.timestamp === "number") {
+        return data.timestamp * 1000;
+      }
+      return null;
+    };
     const fetchRates = async () => {
       try {
         const fetchWithTimeout = (url: string, ms = 5000): Promise<Response> =>
@@ -89,25 +191,42 @@ export default function App() {
           ]);
 
         const sources = [
-          "https://open.er-api.com/v6/latest/USD",
-          "https://api.exchangerate.host/latest?base=USD&source=ecb&places=6",
+          { url: "https://api.devex-calculator.dev/", label: "API" },
+          { url: "https://open.er-api.com/v6/latest/USD", label: "Fallback (open.er-api)" },
+          {
+            url: "https://api.exchangerate.host/latest?base=USD&source=ecb&places=6",
+            label: "Fallback (exchangerate.host)",
+          },
         ];
 
         let rates: Record<string, number> | null = null;
         let baseCode: CurrencyCode = "USD";
-        for (const url of sources) {
+        let sourceLabel: string | null = null;
+        let lastData: any = null;
+        for (const { url, label } of sources) {
           try {
             const res = await fetchWithTimeout(url);
             if (!res.ok) continue;
             const data: any = await res.json();
+            if (data?.result === "success" && data?.conversion_rates) {
+              rates = data.conversion_rates;
+              baseCode = (data.base_code || data.base || "USD").toUpperCase?.() || "USD";
+              sourceLabel = label;
+              lastData = data;
+              break;
+            }
             if (data?.result === "success" && data?.rates) {
               rates = data.rates;
               baseCode = (data.base_code || data.base || "USD").toUpperCase?.() || "USD";
+              sourceLabel = label;
+              lastData = data;
               break;
             }
             if (data?.rates) {
               rates = data.rates;
               baseCode = (data.base || "USD").toUpperCase?.() || "USD";
+              sourceLabel = label;
+              lastData = data;
               break;
             }
           } catch {
@@ -118,7 +237,10 @@ export default function App() {
         if (!isActive) return;
 
         if (!rates) {
-          setFxStatus("Offline");
+          const fallbackStatus = lastFxUpdated
+            ? `Failed to update • last ${formatDate(lastFxUpdated)}`
+            : "Failed to update";
+          setFxStatus(fallbackStatus);
           return;
         }
 
@@ -157,10 +279,28 @@ export default function App() {
             Object.entries(updated).map(([code, val]) => [code as CurrencyCode, String(val)])
           ) as Record<CurrencyCode, string>
         );
-        setFxStatus(`Live ${new Date().toLocaleTimeString([], { hour12: false })}`);
+        try {
+          const updatedAt = extractUpdatedTs(lastData) || Date.now();
+          window.localStorage.setItem(
+            FX_CACHE_KEY,
+            JSON.stringify({ rates: updated, ts: updatedAt, source: sourceLabel || "API" })
+          );
+        } catch (err) {
+          console.warn("Failed to store FX cache", err);
+        }
+        const updatedAt = extractUpdatedTs(lastData) || Date.now();
+        setLastFxUpdated(updatedAt);
+        const label = sourceLabel || "API";
+        setFxSource(label);
+        setFxStatus(`${formatDate(updatedAt)}`);
       } catch (err) {
         console.warn("FX fetch error", err);
-        if (isActive) setFxStatus("Offline");
+        if (isActive) {
+          const fallbackStatus = lastFxUpdated
+            ? `Failed to update • last ${formatDate(lastFxUpdated)}`
+            : "Failed to update";
+          setFxStatus(fallbackStatus);
+        }
       }
     };
     fetchRates();
@@ -250,7 +390,10 @@ export default function App() {
     setShowBeforeTax(false);
   };
 
-  const handleDismissBetaNotice = () => setShowBetaNotice(false);
+  const handleDismissBetaNotice = () => {
+    setShowBetaNotice(false);
+    setBetaDismissedSession(true);
+  };
 
   const handleDisableBetaNotice = () => {
     if (typeof window !== "undefined") {
@@ -260,6 +403,7 @@ export default function App() {
         console.warn("Failed to store beta preference", err);
       }
     }
+    setBetaDismissed(true);
     setShowBetaNotice(false);
   };
 
@@ -302,7 +446,6 @@ export default function App() {
         fxOverride: boolean;
         fxInputs: Record<string, number | string>;
         showBeforeTax: boolean;
-        // Legacy
         robuxTaxAfterInput?: string;
         robuxTaxBeforeInput?: string;
         robuxTaxInput?: string;
@@ -348,13 +491,21 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const shouldShow = window.localStorage.getItem(BETA_DISMISS_KEY) !== "1";
-      setShowBetaNotice(shouldShow);
+      const disabled = window.localStorage.getItem(BETA_DISMISS_KEY) === "1";
+      setBetaDismissed(disabled);
     } catch (err) {
       console.warn("Failed to read beta preference", err);
-      setShowBetaNotice(true);
+      setBetaDismissed(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!hasChosenTheme || betaDismissed || betaDismissedSession) {
+      setShowBetaNotice(false);
+      return;
+    }
+    setShowBetaNotice(true);
+  }, [hasChosenTheme, betaDismissed, betaDismissedSession]);
 
 
   useEffect(() => {
@@ -505,7 +656,11 @@ export default function App() {
   const splitsWithAmounts = totals.collaboratorAmounts;
   const lastUpdated =
     document.lastModified && !Number.isNaN(Date.parse(document.lastModified))
-      ? new Date(document.lastModified).toLocaleString([], { hour12: false, timeZoneName: "short" })
+      ? new Date(document.lastModified).toLocaleString([], {
+        hour12: false,
+        timeZone: "Etc/GMT-2",
+        timeZoneName: "short",
+      })
       : "N/A";
 
   const hasModifiedExtras = useMemo(() => {
@@ -516,8 +671,12 @@ export default function App() {
 
   return (
     <>
-      <BackgroundCanvas />
-      <BetaNotice open={showBetaNotice} onClose={handleDismissBetaNotice} onDisable={handleDisableBetaNotice} />
+      <BackgroundCanvas active={theme === "default"} />
+      <BetaNotice
+        open={showBetaNotice}
+        onClose={handleDismissBetaNotice}
+        onDisable={handleDisableBetaNotice}
+      />
       <motion.main
         className="page"
         variants={containerVariants}
@@ -532,12 +691,20 @@ export default function App() {
               <h2>Inputs</h2>
               <div className="head-actions">
                 <button
-                  className={`icon-btn ghost extras-toggle ${hasModifiedExtras ? "has-updates" : ""}`}
+                  className="icon-btn extras-toggle"
+                  type="button"
+                  onClick={() => setThemeOpen(true)}
+                >
+                  Themes
+                </button>
+                <button
+                  className={`icon-btn extras-toggle ${hasModifiedExtras ? "has-updates" : ""}`}
                   type="button"
                   onClick={() => setExtrasOpen((v) => !v)}
                 >
                   {extrasOpen ? "Hide extras" : "Show extras"}
                 </button>
+
                 <button className="collapse-toggle" type="button" data-target="inputsCard">
                   Toggle
                 </button>
@@ -620,6 +787,16 @@ export default function App() {
                     onResetAll={handleResetAll}
                     extrasOpen={extrasOpen}
                   />
+                  <div className="extras-actions">
+                    <a
+                      className="repo-link"
+                      href="https://github.com/CIoudGuy/Roblox-Devex-Calculator"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View on GitHub
+                    </a>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -642,15 +819,40 @@ export default function App() {
 
         <footer className="footer">
           <div className="beta-note">
-            <span className="beta-text beta-warning">Still in beta - expect changes.</span>
-            <span className="beta-text">Last updated: {lastUpdated}</span>
-            <span className="beta-text small">FX status: {fxStatus || "Live"}</span>
-            <a className="repo-link" href="https://github.com/CIoudGuy/Roblox-Devex-Calculator" target="_blank" rel="noopener noreferrer">
-              View on GitHub
-            </a>
+            <div className="beta-row">
+              <span className="beta-text">Last updated: {lastUpdated}</span>
+              <span
+                className="beta-text small"
+                title={
+                  fxSource && fxSource !== "Cache"
+                    ? `${fxSource}`
+                    : undefined
+                }
+              >
+                Rates status:{" "}
+                {fxStatus || (lastFxUpdated ? `${formatDate(lastFxUpdated)}` : "Updating...")}
+              </span>
+            </div>
+            <div className="beta-row">
+              <span className="beta-text beta-warning">Still in beta - expect changes.</span>
+            </div>
           </div>
         </footer>
       </motion.main>
+      <Feedback />
+      <ThemeMenu
+        isOpen={themeOpen}
+        setIsOpen={setThemeOpen}
+        currentTheme={theme}
+        setTheme={handleSetTheme}
+      />
+      <WelcomeThemeModal
+        isOpen={welcomeOpen}
+        onClose={handleWelcomeClose}
+        currentTheme={theme}
+        setTheme={handleSetTheme}
+      />
+
     </>
   );
 }

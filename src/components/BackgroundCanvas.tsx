@@ -1,10 +1,16 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export default function BackgroundCanvas() {
+type BackgroundCanvasProps = {
+  active?: boolean;
+};
+
+export default function BackgroundCanvas({ active = true }: BackgroundCanvasProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
+    if (!active) return;
+
     const canvas = ref.current;
     if (!canvas) return;
 
@@ -112,7 +118,8 @@ export default function BackgroundCanvas() {
       window.removeEventListener("pointermove", onPointer);
       renderer.dispose();
     };
-  }, []);
+  }, [active]);
 
+  if (!active) return null;
   return <canvas id="gl-canvas" ref={ref} />;
 }
