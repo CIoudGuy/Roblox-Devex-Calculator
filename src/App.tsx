@@ -700,9 +700,9 @@ export default function App() {
                 <button
                   className={`icon-btn extras-toggle ${hasModifiedExtras ? "has-updates" : ""}`}
                   type="button"
-                  onClick={() => setExtrasOpen((v) => !v)}
+                  onClick={() => setExtrasOpen(true)}
                 >
-                  {extrasOpen ? "Hide extras" : "Show extras"}
+                  Open extras
                 </button>
 
                 <button className="collapse-toggle" type="button" data-target="inputsCard">
@@ -751,55 +751,6 @@ export default function App() {
               )}
             </div>
 
-            <AnimatePresence initial={false}>
-              {extrasOpen && (
-                <motion.div
-                  className="extras-inline"
-                  initial={{ opacity: 0, y: -10, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: "auto" }}
-                  exit={{ opacity: 0, y: -10, height: 0 }}
-                  transition={{ duration: 0.32, ease: "easeOut" }}
-                  layout
-                >
-                  <InlineSettings
-                    currency={currency}
-                    baseRateInput={baseRateInput}
-                    onBaseRateChange={(val) => {
-                      setRatePreset(null);
-                      setBaseRateInput(val);
-                    }}
-                    activePreset={ratePreset}
-                    presets={RATE_PRESETS}
-                    onPresetSelect={handlePresetSelect}
-                    fxInput={fxInputs[currency] ?? ""}
-                    onFxChange={(val) => handleFxChange(currency, val)}
-                    onResetFx={() => resetFxRate(currency)}
-                    splitsEnabled={splitsEnabled}
-                    withholdEnabled={withholdEnabled}
-                    onToggleSplitsEnabled={toggleSplitsEnabled}
-                    onToggleWithholdEnabled={toggleWithholdEnabled}
-                    platformTax={platformTaxInput}
-                    setPlatformTax={setPlatformTaxInput}
-                    defaultRobuxTax={Number(DEFAULT_PLATFORM_CUT)}
-                    showBeforeTax={showBeforeTax}
-                    onToggleTaxView={() => setShowBeforeTax((v) => !v)}
-                    taxHighlight={taxHighlight}
-                    onResetAll={handleResetAll}
-                    extrasOpen={extrasOpen}
-                  />
-                  <div className="extras-actions">
-                    <a
-                      className="repo-link"
-                      href="https://github.com/CIoudGuy/Roblox-Devex-Calculator"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      View on GitHub
-                    </a>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </section>
 
           <ResultsCard
@@ -839,6 +790,97 @@ export default function App() {
           </div>
         </footer>
       </motion.main>
+
+      <AnimatePresence>
+        {extrasOpen && (
+          <>
+            <motion.div
+              className="extras-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setExtrasOpen(false)}
+            />
+            <motion.aside
+              className="extras-sidebar"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Extras settings"
+            >
+              <div className="extras-header">
+                <div>
+                  <p className="eyebrow">Advanced</p>
+                  <h3>Extras</h3>
+                  <p className="muted tiny">Custom rates, FX, and tax helpers.</p>
+                </div>
+                <button
+                  className="close-btn"
+                  onClick={() => setExtrasOpen(false)}
+                  aria-label="Close extras"
+                  type="button"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div className="extras-content dark-scroll">
+                <InlineSettings
+                  currency={currency}
+                  baseRateInput={baseRateInput}
+                  onBaseRateChange={(val) => {
+                    setRatePreset(null);
+                    setBaseRateInput(val);
+                  }}
+                  activePreset={ratePreset}
+                  presets={RATE_PRESETS}
+                  onPresetSelect={handlePresetSelect}
+                  fxInput={fxInputs[currency] ?? ""}
+                  onFxChange={(val) => handleFxChange(currency, val)}
+                  onResetFx={() => resetFxRate(currency)}
+                  splitsEnabled={splitsEnabled}
+                  withholdEnabled={withholdEnabled}
+                  onToggleSplitsEnabled={toggleSplitsEnabled}
+                  onToggleWithholdEnabled={toggleWithholdEnabled}
+                  platformTax={platformTaxInput}
+                  setPlatformTax={setPlatformTaxInput}
+                  defaultRobuxTax={Number(DEFAULT_PLATFORM_CUT)}
+                  showBeforeTax={showBeforeTax}
+                  onToggleTaxView={() => setShowBeforeTax((v) => !v)}
+                  taxHighlight={taxHighlight}
+                  onResetAll={handleResetAll}
+                  extrasOpen={extrasOpen}
+                />
+                <div className="extras-actions">
+                  <a
+                    className="repo-link"
+                    href="https://github.com/CIoudGuy/Roblox-Devex-Calculator"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View on GitHub
+                  </a>
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       <Feedback />
       <ThemeMenu
         isOpen={themeOpen}
