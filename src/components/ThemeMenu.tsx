@@ -4,10 +4,10 @@ import ThemePreview, { THEME_CONFIG } from "./ThemePreview";
 export type Theme = "default" | "white" | "dark";
 
 type ThemeMenuProps = {
-    isOpen: boolean;
-    setIsOpen: (open: boolean) => void;
-    currentTheme: Theme;
-    setTheme: (theme: Theme) => void;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  currentTheme: Theme;
+  setTheme: (theme: Theme) => void;
 };
 
 const THEMES: Theme[] = ["default", "white", "dark"];

@@ -13,6 +13,18 @@ export interface RatePreset {
   hint?: string;
 }
 
+export type PaymentMethodId = "local_bank" | "wire" | "check" | "paypal";
+
+export interface PaymentMethod {
+  id: PaymentMethodId;
+  label: string;
+  description?: string;
+  flatFeeUsd?: number;
+  flatFeeByCurrency?: Partial<Record<CurrencyCode, number>>;
+  fxFeeRange: [number, number];
+  warning?: string;
+}
+
 export interface Split {
   id: string;
   name: string;
@@ -30,6 +42,8 @@ export interface Totals {
   shared: number;
   withheld: number;
   yourSharePct: number;
+  flatFeeApplied: number;
+  fxFeeApplied: number;
   collaboratorAmounts: SplitWithAmount[];
 }
 

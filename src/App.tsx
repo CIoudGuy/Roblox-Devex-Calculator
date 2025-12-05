@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import BackgroundCanvas from "./components/BackgroundCanvas";
 import AmountInputs from "./components/AmountInputs";
@@ -12,6 +12,7 @@ import ThemeMenu, { type Theme } from "./components/ThemeMenu";
 import WelcomeThemeModal from "./components/WelcomeThemeModal";
 import { currencyList, fxToUsd } from "./data/currencies";
 import { DEFAULT_BASE_RATE, INPUT_LIMIT, RATE_PRESETS } from "./constants/rates";
+import { DEFAULT_PAYMENT_METHOD_ID, paymentMethods } from "./constants/payments";
 import { clamp, formatCurrency, formatNumberInput, parseNumber } from "./utils/numbers";
 import { defaultSplit } from "./utils/splits";
 import { useTotals } from "./hooks/useTotals";
@@ -21,6 +22,8 @@ import type {
   BreakdownKey,
   CurrencyCode,
   FxRates,
+  PaymentMethod,
+  PaymentMethodId,
   RatePreset,
   Split,
 } from "./types";
@@ -42,6 +45,7 @@ export default function App() {
   const [activeMetric, setActiveMetric] = useState<BreakdownKey>("gross");
   const [splits, setSplits] = useState<Split[]>([]);
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>(DEFAULT_PAYMENT_METHOD_ID);
   const [withholdOpen, setWithholdOpen] = useState<boolean>(false);
   const [splitsOpen, setSplitsOpen] = useState<boolean>(false);
   const [extrasOpen, setExtrasOpen] = useState<boolean>(false);
@@ -61,6 +65,7 @@ export default function App() {
       document.documentElement.setAttribute("data-theme", savedTheme);
       setHasChosenTheme(true);
     }
+    document.documentElement.removeAttribute("data-flat-ui");
 
     if (!hasSeenWelcome) {
       setTimeout(() => setWelcomeOpen(true), 1000);
@@ -103,6 +108,9 @@ export default function App() {
   const [loadedSettings, setLoadedSettings] = useState<boolean>(false);
   const [showBetaNotice, setShowBetaNotice] = useState<boolean>(false);
   const [showBeforeTax, setShowBeforeTax] = useState<boolean>(false);
+  const [fxFeesEnabled, setFxFeesEnabled] = useState<boolean>(true);
+  const [feesInUsdOnly, setFeesInUsdOnly] = useState<boolean>(false);
+  const [paymentOpen, setPaymentOpen] = useState<boolean>(true);
 
   const formatDate = (ts: number) =>
     new Date(ts).toLocaleDateString([], {
@@ -125,14 +133,29 @@ export default function App() {
   const platformTaxPct = useMemo<number>(() => clamp(0, parseNumber(platformTaxInput), 100), [platformTaxInput]);
   const robuxTaxPct = platformTaxPct;
 
-  const fee = 5;
+  const selectedPayment: PaymentMethod =
+    paymentMethods.find((method) => method.id === paymentMethod) || paymentMethods[0];
+
+  const fxToggleVisible = currency !== "USD";
+  const flatFee = useMemo(() => {
+    const currencyFee = selectedPayment.flatFeeByCurrency?.[currency];
+    if (typeof currencyFee === "number") return currencyFee;
+    if (typeof selectedPayment.flatFeeUsd === "number") return selectedPayment.flatFeeUsd;
+    return 0;
+  }, [selectedPayment, currency]);
+
+  const fxFeeRange = selectedPayment.fxFeeRange || [0, 0];
+  const [fxFeeMinPct, fxFeeMaxPct] = fxFeeRange;
+  const appliedFxFeePct = fxToggleVisible && fxFeesEnabled ? fxFeeMaxPct : 0;
 
   const totals = useTotals({
     robuxInput,
     splits: activeSplits,
     withhold: withholdEnabled ? withhold : 0,
     baseRate,
-    fee,
+    flatFee,
+    fxFeePct: appliedFxFeePct,
+    applyFxFee: fxToggleVisible && fxFeesEnabled,
   });
 
   useEffect(() => {
@@ -152,7 +175,7 @@ export default function App() {
       if (typeof data.ts === "number" && Number.isFinite(data.ts)) {
         setLastFxUpdated(data.ts);
         setFxSource(data.source || "Cache");
-        setFxStatus(`Cached • ${formatDate(data.ts)}`);
+        setFxStatus(`Cached | ${formatDate(data.ts)}`);
       }
       setFxInputs(
         Object.fromEntries(
@@ -166,7 +189,7 @@ export default function App() {
 
   useEffect(() => {
     setFxStatus(
-      lastFxUpdated ? `Updating... • last ${formatDate(lastFxUpdated)}` : "Updating..."
+      lastFxUpdated ? `Updating... | last ${formatDate(lastFxUpdated)}` : "Updating..."
     );
     let isActive = true;
     const extractUpdatedTs = (data: any): number | null => {
@@ -238,7 +261,7 @@ export default function App() {
 
         if (!rates) {
           const fallbackStatus = lastFxUpdated
-            ? `Failed to update • last ${formatDate(lastFxUpdated)}`
+            ? `Failed to update | last ${formatDate(lastFxUpdated)}`
             : "Failed to update";
           setFxStatus(fallbackStatus);
           return;
@@ -297,7 +320,7 @@ export default function App() {
         console.warn("FX fetch error", err);
         if (isActive) {
           const fallbackStatus = lastFxUpdated
-            ? `Failed to update • last ${formatDate(lastFxUpdated)}`
+            ? `Failed to update | last ${formatDate(lastFxUpdated)}`
             : "Failed to update";
           setFxStatus(fallbackStatus);
         }
@@ -345,6 +368,9 @@ export default function App() {
       return next;
     });
 
+  const toggleFeesInUsdOnly = () => setFeesInUsdOnly((prev) => !prev);
+  const togglePaymentOpen = () => setPaymentOpen((prev) => !prev);
+
   const beforeTaxRobux = useMemo(() => {
     const raw = parseNumber(robuxInput);
     const divisor = Math.max(0.01, 1 - platformTaxPct / 100);
@@ -372,6 +398,7 @@ export default function App() {
     setRobuxInput("");
     setUsdInput("");
     setCurrency("USD");
+    setPaymentMethod(DEFAULT_PAYMENT_METHOD_ID);
     setWithhold(10);
     setWithholdEnabled(false);
     setWithholdOpen(false);
@@ -388,6 +415,9 @@ export default function App() {
     setTaxHighlight(false);
     setFxOverride(false);
     setShowBeforeTax(false);
+    setFxFeesEnabled(true);
+    setFeesInUsdOnly(false);
+    setPaymentOpen(true);
   };
 
   const handleDismissBetaNotice = () => {
@@ -446,12 +476,19 @@ export default function App() {
         fxOverride: boolean;
         fxInputs: Record<string, number | string>;
         showBeforeTax: boolean;
+        paymentMethod: PaymentMethodId;
+        fxFeesEnabled: boolean;
+        feesInUsdOnly?: boolean;
         robuxTaxAfterInput?: string;
         robuxTaxBeforeInput?: string;
         robuxTaxInput?: string;
       }>;
       if (data && typeof data === "object") {
         if (typeof data.currency === "string") setCurrency(data.currency);
+        if (typeof data.paymentMethod === "string") {
+          const nextMethod = paymentMethods.find((m) => m.id === data.paymentMethod);
+          if (nextMethod) setPaymentMethod(nextMethod.id);
+        }
         if (typeof data.withhold === "number") setWithhold(data.withhold);
         if (typeof data.withholdEnabled === "boolean") setWithholdEnabled(data.withholdEnabled);
         if (typeof data.splitsEnabled === "boolean") setSplitsEnabled(data.splitsEnabled);
@@ -467,6 +504,9 @@ export default function App() {
         }
         if (typeof data.fxOverride === "boolean") setFxOverride(data.fxOverride);
         if (typeof data.showBeforeTax === "boolean") setShowBeforeTax(data.showBeforeTax);
+        if (typeof data.fxFeesEnabled === "boolean") setFxFeesEnabled(data.fxFeesEnabled);
+        if (typeof data.feesInUsdOnly === "boolean") setFeesInUsdOnly(data.feesInUsdOnly);
+        if (typeof data.paymentOpen === "boolean") setPaymentOpen(data.paymentOpen);
         if (data.fxInputs && typeof data.fxInputs === "object") {
           const merged: FxRates = { ...fxToUsd };
           Object.entries(data.fxInputs).forEach(([code, val]) => {
@@ -512,15 +552,19 @@ export default function App() {
     if (!loadedSettings || typeof window === "undefined") return;
     const payload = {
       currency,
+      paymentMethod,
       withhold,
       withholdEnabled,
       splitsEnabled,
       baseRateInput,
       ratePreset,
       platformTaxInput,
-      fxInputs,
-      fxOverride,
-      showBeforeTax,
+    fxInputs,
+    fxOverride,
+    showBeforeTax,
+    fxFeesEnabled,
+    feesInUsdOnly,
+    paymentOpen,
     };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -540,6 +584,10 @@ export default function App() {
     fxInputs,
     fxOverride,
     showBeforeTax,
+    paymentMethod,
+    fxFeesEnabled,
+    feesInUsdOnly,
+    paymentOpen,
   ]);
 
   const handleAddSplit = () => {
@@ -604,20 +652,42 @@ export default function App() {
     return { robuxNeeded, rateToUsd: selectedRateToUsd };
   }, [usdInput, selectedRateToUsd, baseRate]);
 
+  const fxFeeRangeText = `${(fxFeeMinPct * 100).toFixed(1)}%-${(fxFeeMaxPct * 100).toFixed(1)}%`;
+  const flatFeeDisplay = feesInUsdOnly ? formatCurrency(flatFee, "USD") : formatDisplayCurrency(flatFee);
+  const fxFeeAppliedPctText = `${(fxFeeMaxPct * 100).toFixed(1)}%`;
+  const fxFeeAppliedValueText = formatDisplayCurrency(totals.fxFeeApplied);
+  const fxFeeSummary = !fxToggleVisible
+    ? ""
+    : totals.grossRaw
+      ? fxFeesEnabled
+        ? `${fxFeeAppliedPctText} fee (costs ${fxFeeAppliedValueText})`
+        : "FX fee off"
+      : fxFeesEnabled
+        ? `FX fee ${fxFeeRangeText}`
+        : "FX fee off";
+  const showFxSummary = fxToggleVisible && fxFeeSummary !== "";
+  const paymentWarning = selectedPayment.warning || null;
+  const paymentDescription = selectedPayment.description || null;
+
   const breakdownMeta: Record<BreakdownKey, BreakdownItem> = {
     gross: {
       label: "Gross payout",
-      note: () => "$5 eCheck fee applied.",
+      note: (o) =>
+        `${selectedPayment.label}: -${flatFeeDisplay}${fxToggleVisible && fxFeesEnabled
+          ? ` + FX fee ${fxFeeAppliedPctText} (-${formatDisplayCurrency(o.fxFeeApplied)})`
+          : ""
+        }`,
       get: (o) => o.totalAfterFee,
     },
     split: {
       label: "After splits",
-      note: (o) => `${o.yourSharePct.toFixed(1)}% share after $5 fee.`,
+      note: (o) =>
+        `${o.yourSharePct.toFixed(1)}% share after ${selectedPayment.label} fees.`,
       get: (o) => o.shared,
     },
     withholding: {
       label: "After withholding",
-      note: () => "Withholding after $5 fee.",
+      note: () => "Withholding after payment and FX fees.",
       get: (o) => o.withheld,
     },
     convert: {
@@ -634,9 +704,17 @@ export default function App() {
   const copyNumbers = async () => {
     const summary = [
       `Currency: ${currency}`,
+      `Payment: ${selectedPayment.label}`,
       `Gross: ${formatDisplayCurrency(breakdownMeta.gross.get(totals))}`,
       `After splits: ${formatDisplayCurrency(breakdownMeta.split.get(totals))}`,
       `After withholding: ${formatDisplayCurrency(breakdownMeta.withholding.get(totals))}`,
+      `Flat fee: ${flatFeeDisplay}`,
+      `FX fee: ${fxToggleVisible
+        ? fxFeesEnabled
+          ? `${fxFeeAppliedPctText} (-${formatDisplayCurrency(totals.fxFeeApplied)})`
+          : "Off"
+        : "Off (USD)"
+      }`,
       `DevEx rate: ${baseRate.toFixed(4)} USD/R$`,
       `Withholding: ${withhold}%`,
       splits.length ? `Collaborators: ${splits.length}` : "Collaborators: none",
@@ -666,8 +744,9 @@ export default function App() {
   const hasModifiedExtras = useMemo(() => {
     const isBaseRateModified = baseRateInput !== String(DEFAULT_BASE_RATE);
     const isTaxModified = platformTaxInput !== DEFAULT_PLATFORM_CUT;
-    return isBaseRateModified || isTaxModified || fxOverride;
-  }, [baseRateInput, platformTaxInput, fxOverride]);
+    const isFeeDisplayModified = feesInUsdOnly;
+    return isBaseRateModified || isTaxModified || fxOverride || isFeeDisplayModified;
+  }, [baseRateInput, platformTaxInput, fxOverride, feesInUsdOnly]);
 
   return (
     <>
@@ -729,6 +808,19 @@ export default function App() {
                   setActiveMetric("convert");
                 }}
                 onActiveMetricChange={setActiveMetric}
+                paymentMethods={paymentMethods}
+                paymentMethod={paymentMethod}
+                onPaymentMethodChange={setPaymentMethod}
+                paymentFlatFeeDisplay={flatFeeDisplay}
+                fxFeesEnabled={fxFeesEnabled}
+                fxFeeSummary={fxFeeSummary}
+                onToggleFxFees={() => setFxFeesEnabled((prev) => !prev)}
+                showFxToggle={fxToggleVisible}
+                showFxSummary={showFxSummary}
+                paymentOpen={paymentOpen}
+                onTogglePayment={togglePaymentOpen}
+                paymentWarning={paymentWarning}
+                paymentDescription={paymentDescription}
               />
 
               {showAdjustments && (
@@ -856,6 +948,8 @@ export default function App() {
                   withholdEnabled={withholdEnabled}
                   onToggleSplitsEnabled={toggleSplitsEnabled}
                   onToggleWithholdEnabled={toggleWithholdEnabled}
+                  feesInUsdOnly={feesInUsdOnly}
+                  onToggleFeesInUsdOnly={toggleFeesInUsdOnly}
                   platformTax={platformTaxInput}
                   setPlatformTax={setPlatformTaxInput}
                   defaultRobuxTax={Number(DEFAULT_PLATFORM_CUT)}
@@ -898,3 +992,8 @@ export default function App() {
     </>
   );
 }
+
+
+
+
+

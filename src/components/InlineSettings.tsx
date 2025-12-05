@@ -24,6 +24,8 @@ type InlineSettingsProps = {
   taxHighlight: boolean;
   onResetAll: () => void;
   extrasOpen: boolean;
+  feesInUsdOnly: boolean;
+  onToggleFeesInUsdOnly: () => void;
 };
 
 export default function InlineSettings({
@@ -48,6 +50,8 @@ export default function InlineSettings({
   taxHighlight,
   onResetAll,
   extrasOpen,
+  feesInUsdOnly,
+  onToggleFeesInUsdOnly,
 }: InlineSettingsProps) {
   const clampTax = (value: string) => {
     const num = parseNumber(value);
@@ -132,6 +136,22 @@ export default function InlineSettings({
             <div className="toggle-info">
               <span className="toggle-label">Withholding</span>
               <span className="toggle-desc">Set aside taxes</span>
+            </div>
+            <div className="toggle-track">
+              <motion.div className="toggle-thumb" layout transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+            </div>
+          </button>
+
+          <button
+            className={`toggle-card ${feesInUsdOnly ? "active" : ""}`}
+            type="button"
+            onClick={onToggleFeesInUsdOnly}
+            role="switch"
+            aria-checked={feesInUsdOnly}
+          >
+            <div className="toggle-info">
+              <span className="toggle-label">Lock fees to USD</span>
+              <span className="toggle-desc">Keep flat/FX fees shown in USD</span>
             </div>
             <div className="toggle-track">
               <motion.div className="toggle-thumb" layout transition={{ type: "spring", stiffness: 500, damping: 30 }} />

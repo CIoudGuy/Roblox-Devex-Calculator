@@ -51,15 +51,29 @@ export default function ThemePreview({ theme, active, onClick }: ThemePreviewPro
       </div>
 
       <div className="theme-preview-box" style={{ background: config.bg, color: config.text }}>
-        <div className="theme-preview-bar" style={{ background: config.card }} />
-        <div className="theme-preview-columns">
-          <div className="theme-preview-col" style={{ background: config.card }} />
-          <div className="theme-preview-col short" style={{ background: config.card }} />
+        <div className="theme-preview-shell" style={{ borderColor: config.card }}>
+          <div className="theme-preview-top">
+            <div className="theme-preview-dots">
+              <span style={{ background: config.card, opacity: 0.8 }} />
+              <span style={{ background: config.card, opacity: 0.6 }} />
+              <span style={{ background: config.accent, opacity: 0.9 }} />
+            </div>
+            <span className="theme-preview-pill" style={{ background: config.card, opacity: 0.9 }} />
+          </div>
+          <div className="theme-preview-body">
+            <div className="theme-preview-pane strong" style={{ background: config.card }}>
+              <span className="preview-line long" style={{ background: config.text }} />
+              <span className="preview-accent" style={{ background: config.accent }} />
+            </div>
+            <div className="theme-preview-pane muted" style={{ background: config.card }}>
+              <span className="preview-line short" style={{ background: config.text }} />
+              <span className="preview-line tiny" style={{ background: config.text }} />
+            </div>
+          </div>
         </div>
-        <div className="theme-preview-dot" style={{ background: config.accent }} />
+        <div className="theme-preview-dot" style={{ color: config.accent }} />
       </div>
 
-      <p className="theme-blurb">{config.blurb}</p>
     </button>
   );
 }

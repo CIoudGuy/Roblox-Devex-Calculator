@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
-import type { BreakdownKey, CurrencyCode } from "../types";
+import type { BreakdownKey, CurrencyCode, PaymentMethod, PaymentMethodId } from "../types";
 import { blockNonNumericKeys } from "../utils/numbers";
 import CurrencySelect from "./CurrencySelect";
 import CountUp from "./CountUp";
+import PaymentMethodSelect from "./PaymentMethodSelect";
 
 type AmountInputsProps = {
   currency: CurrencyCode;
@@ -18,6 +19,19 @@ type AmountInputsProps = {
   onOpenTaxSettings: () => void;
   onToggleTaxView: () => void;
   onActiveMetricChange?: (metric: BreakdownKey) => void;
+  paymentMethods: PaymentMethod[];
+  paymentMethod: PaymentMethodId;
+  onPaymentMethodChange: (id: PaymentMethodId) => void;
+  paymentFlatFeeDisplay: string;
+  fxFeesEnabled: boolean;
+  fxFeeSummary: string;
+  onToggleFxFees: () => void;
+  showFxToggle: boolean;
+  showFxSummary: boolean;
+  paymentOpen: boolean;
+  onTogglePayment: () => void;
+  paymentWarning?: string | null;
+  paymentDescription?: string | null;
 };
 
 export default function AmountInputs({
@@ -34,12 +48,25 @@ export default function AmountInputs({
   onOpenTaxSettings,
   onToggleTaxView,
   onActiveMetricChange,
+  paymentMethods,
+  paymentMethod,
+  onPaymentMethodChange,
+  paymentFlatFeeDisplay,
+  fxFeesEnabled,
+  fxFeeSummary,
+  onToggleFxFees,
+  showFxToggle,
+  showFxSummary,
+  paymentOpen,
+  onTogglePayment,
+  paymentWarning,
+  paymentDescription,
 }: AmountInputsProps) {
   const taxLabel = showBeforeTax ? "Before" : "After";
   const taxValue = showBeforeTax ? afterTaxRobux : beforeTaxRobux;
 
   return (
-    <motion.div className="input-group" layout>
+    <motion.div className="input-group" layout="position" transition={{ layout: { duration: 0 } }}>
       <div className="input-head">
         <h3>Amounts</h3>
         <CurrencySelect value={currency} onValueChange={onCurrencyChange} />
@@ -74,6 +101,37 @@ export default function AmountInputs({
           />
         </motion.div>
       </label>
+
+      <div className={`payment-collapse ${paymentOpen ? "is-open" : ""}`}>
+        <button
+          type="button"
+          className={`icon-btn ghost full ${paymentOpen ? "active" : ""}`}
+          onClick={onTogglePayment}
+          aria-expanded={paymentOpen}
+          aria-controls="paymentPanel"
+        >
+          Payment method
+          <span className="hint-icon" data-tooltip="Choose payout method and fees.">?</span>
+        </button>
+        {paymentOpen && (
+          <div id="paymentPanel" className="payment-panel">
+            <PaymentMethodSelect
+              methods={paymentMethods}
+              value={paymentMethod}
+              onChange={onPaymentMethodChange}
+              flatFeeDisplay={paymentFlatFeeDisplay}
+              fxFeesEnabled={fxFeesEnabled}
+              fxFeeSummary={fxFeeSummary}
+              onToggleFxFees={onToggleFxFees}
+              showFxToggle={showFxToggle}
+              showFxSummary={showFxSummary}
+              warning={paymentWarning}
+              description={paymentDescription}
+            />
+          </div>
+        )}
+      </div>
+
       <label>
         <div className="label-line">
           <span id="convertLabel">{`${currency} to Robux`}</span>{" "}
