@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://devex-calculator.dev/sitemap.xml
